@@ -7,6 +7,8 @@ add_library(CSHook SHARED ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
 # Unicode for Windows (wchar_t)
 ADD_DEFINITIONS(-DUNICODE)
 ADD_DEFINITIONS(-D_UNICODE)
+# Dont do me like this windows
+ADD_DEFINITIONS(-DNOMINMAX)
 
 # Debugging stuff
 add_compile_options(-Wall -Wextra -Wpedantic)

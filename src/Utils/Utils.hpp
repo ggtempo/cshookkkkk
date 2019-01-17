@@ -7,7 +7,7 @@
 
 #include <Windows.h>
 
-namespace Utils
+namespace utils
 {
 	struct ModuleInfo
 	{

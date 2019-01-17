@@ -54,6 +54,16 @@ typedef enum
 	TRI_NONE = 1,
 } TRICULLSTYLE;
 
+typedef struct SCREENINFO_s
+{
+	int		iSize;
+	int		iWidth;
+	int		iHeight;
+	int		iFlags;
+	int		iCharHeight;
+	short	charWidths[256];
+} SCREENINFO;
+
 typedef struct triangleapi_s
 {
 	int			version;

@@ -1,4 +1,5 @@
 #pragma once
+#include <Windows.h>
 #include "../HLSDK/enginefuncs.hpp"
 #include "../HLSDK/clientfuncs.hpp"
 #include "../HLSDK/playermove.hpp"

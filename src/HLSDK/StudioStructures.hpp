@@ -131,6 +131,14 @@ typedef struct
 	int					unused2;    // was "data" -  hack for group 0
 } mstudioseqgroup_t;
 
+typedef struct alight_s
+{
+	int			ambientlight;	// clip at 128
+	int			shadelight;		// clip at 192 - ambientlight
+	vec3_t		color;
+	float		*plightvec;
+} alight_t;
+
 // sequence descriptions
 typedef struct
 {

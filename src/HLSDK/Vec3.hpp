@@ -28,6 +28,8 @@ typedef struct vec3_s
             this->x = other.x;
             this->y = other.y;
             this->z = other.z;
+
+            return *this;
         }
 
 		// Method to normalize a vector
@@ -48,12 +50,12 @@ typedef struct vec3_s
         
 		static float dot_product(const vec3_s &vec1, const vec3_s &vec2)
 		{
-			return vec1.x * vec2.x + vec1.y * vec2.y + vec1.z * vec2.z;
+			return (vec1.x * vec2.x) + (vec1.y * vec2.y) + (vec1.z * vec2.z);
 		}
 
 		float dot_product(const vec3_s &vec) const
 		{
-			return x * vec.x + y * vec.y + z * vec.z;
+			return (x * vec.x) + (y * vec.y) + (z * vec.z);
 		}
 
 		static vec3_s cross_product(const vec3_s &vec1, const vec3_s &vec2)
@@ -186,15 +188,17 @@ typedef struct vec3_s
             angles.x = pitch;
             angles.y = yaw;
             angles.z = 0;
+
+            return angles;
         }
 
         vec3_s multiply_add(float scale, const vec3_s& other) const
         {
             vec3_s result = {};
 
-            result.x = this->x + scale * other.x;
-            result.y = this->x + scale * other.x;
-            result.z = this->x + scale * other.x;
+            result.x = this->x + (scale * other.x);
+            result.y = this->y + (scale * other.y);
+            result.z = this->z + (scale * other.z);
 
             return result;
         }
