@@ -1,0 +1,16 @@
+# .vs files
+.vs/
+
+# .vscode files
+.vscode/
+
+# build files
+bin/
+build/
+
+# various tools
+tools/
+
+# dependencies
+## Small dependencies left
+## such as glad
