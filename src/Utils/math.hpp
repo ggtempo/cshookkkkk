@@ -148,4 +148,45 @@ namespace math
         vec3 rotated_direction = matrix.inverse_rotate_vec3(direction);
         return ray_hits_aabbox(transformed_origin, rotated_direction, aabbox);
     }
+
+    inline float to_deg(float angle)
+    {
+        return angle * (180 / pi);
+    }
+
+    inline float to_rad(float angle)
+    {
+        return angle * (pi / 180);
+    }
+
+    inline vec3 correct_movement(const vec3& original_angles, const vec3& new_angles, const vec3& movement)
+    {
+        if (original_angles == new_angles)
+            return movement;
+
+        // Angles differ
+
+        vec3 result = {};
+        // Solve upmove first
+        if ((original_angles.x > 0.0 && new_angles.x < 0.0) || (original_angles.x < 0.0 && new_angles.x > 0.0))
+        {
+            // If we swapped which half of the 'screen' we are looking at, swap up-move
+            result.z = -movement.z;
+        }
+        else
+        {
+            // Otherwise just keep it same
+            result.z = movement.z;
+        }
+
+        
+        float angle_difference = (new_angles.y - original_angles.y);
+        float cs = std::cos(to_rad(angle_difference));
+        float sn = std::sin(to_rad(angle_difference));
+
+        result.x = (movement.x * cs) - (movement.y * sn);
+        result.y = (movement.x * sn) + (movement.y * cs);
+
+        return result;
+    }
 }

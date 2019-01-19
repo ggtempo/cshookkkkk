@@ -31,6 +31,11 @@ class globals
             this->clr = {};
 
             this->first = true;
+
+            this->angles = {0.0, 0.0, 0.0};
+            this->angles2 = {0.0, 0.0, 0.0};
+            this->move = {0.0, 0.0, 0.0};
+            this->move2 = {0.0, 0.0, 0.0};
         }
 
     public:
@@ -62,6 +67,11 @@ class globals
         int trace_flags = 0;
 
         int trigger_bone = 0;
+
+        vec3_t angles;
+        vec3_t angles2;
+        vec3_t move;
+        vec3_t move2;
 
         // Hooks
         Memory::VMTHook* studio_model_renderer_hook;

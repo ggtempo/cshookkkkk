@@ -93,7 +93,13 @@ namespace Hooks
         ImGui::Begin("Test Settings");
         {
             ImGui::Checkbox("Bhop", &g.bhop_enabled);
-            ImGui::Checkbox("Backtrack", &g.backtrack_enabled);
+            ImGui::Checkbox("View angle manipulation", &g.backtrack_enabled);
+            ImGui::InputFloat3("Aim angles test: ", g.angles2);
+            ImGui::Text("(original) Pitch: %f, Yaw: %f, Roll: %f\n", g.angles.x, g.angles.y, g.angles.z);
+            ImGui::Text("(new) Pitch: %f, Yaw: %f, Roll: %f\n", g.angles2.x, g.angles2.y, g.angles2.z);
+            ImGui::Text("(original) Forward: %f, Side: %f, Up: %f\n", g.move.x, g.move.y, g.move.z);
+            ImGui::Text("(new) Forward: %f, Side: %f, Up: %f\n", g.move2.x, g.move2.y, g.move2.z);
+
             ImGui::Checkbox("Triggerbot", &g.trigger_enabled);
             ImGui::Checkbox("Triggerbot teammates", &g.trigger_team);
             ImGui::InputInt("Triggerbot bone", &g.trigger_bone);
@@ -112,6 +118,7 @@ namespace Hooks
             ImGui::SliderInt("FX Amount: ", &g.fx_amt, 0, 255);
             ImGui::ColorPicker3("FX Colors", reinterpret_cast<float*>(&g.clr));
 
+            
 
             ImGui::InputInt("Trace mode: ", &g.trace_mode);
             ImGui::InputInt("Trace flags: ", &g.trace_flags);
@@ -274,7 +281,6 @@ namespace Hooks
 
         if (entity && entity->model && entity->player && entity != local)
         {
-            g.engine_funcs->Con_Printf("Setting up %i  %i \n", entity->index);
             auto model = g.engine_studio->SetupPlayerModel(entity->index);
             auto header = g.engine_studio->Mod_Extradata(model);
 
@@ -337,6 +343,42 @@ namespace Hooks
             cmd->lerp_msec -= g.backtrack_time;
         }
 
+        if (g.backtrack_enabled)
+        {
+            auto view = cmd->viewangles;
+            auto new_view = g.angles2;
+            auto move = vec3_t{cmd->forwardmove, cmd->sidemove, cmd->upmove};
+            cmd->viewangles = new_view;
+
+            auto new_move = math::correct_movement(view, new_view, move);
+            
+            // Reset movement bits
+            cmd->buttons &= ~IN_FORWARD;
+            cmd->buttons &= ~IN_BACK;
+            cmd->buttons &= ~IN_LEFT;
+            cmd->buttons &= ~IN_RIGHT;
+
+            cmd->forwardmove = new_move.x;
+            cmd->sidemove = new_move.y;
+            cmd->upmove = new_move.z;
+
+            g.move2 = new_move;
+            g.move = move;//new_move;
+            g.angles = view;
+
+            g.angles2.y += g.backtrack_time;
+
+            while (g.angles2.y >= 360)
+            {
+                g.angles2.y -= 360;
+            }
+
+            while (g.angles2.y < 0)
+            {
+                g.angles2.y += 360;
+            }
+        }
+
         // Triggerbot testing
         if (g.trigger_enabled)
         {
@@ -349,22 +391,19 @@ namespace Hooks
             g.engine_funcs->pfnAngleVectors(angles, forward, nullptr, nullptr);
             end = start.multiply_add(2148, forward);
 
-            g.engine_funcs->Con_Printf("Tracing from x:%f y:%f z:%f to x:%f y:%f z:%f \n", start.x, start.y, start.z, end.x, end.y, end.z);
 
             //auto trace = *g.engine_funcs->PM_TraceLine(start, end, PM_TRACELINE_PHYSENTSONLY, 0, lp->index);
             pmtrace_t trace = {};
 
-            g.engine_funcs->pEventAPI->EV_SetTraceHull(2);
+            g.engine_funcs->pEventAPI->EV_SetTraceHull(1);
             g.engine_funcs->pEventAPI->EV_PlayerTrace(start, end, PM_GLASS_IGNORE, -1, &trace);
             
             if (trace.fraction != 1.0f)
             {
-                g.engine_funcs->Con_Printf("Trace hit: %f, entity: %i\n", trace.fraction, trace.ent);
                 // We have a hit
                 
                 if (trace.ent > 0 && trace.ent <= g.player_move->numphysent)
                 {
-                    g.engine_funcs->Con_Printf("Trace hit a valid entity!\n");
                     // Get the actual player
                     // trace->ent is the physical entity number
                     // We need to get the normal one
@@ -377,7 +416,6 @@ namespace Hooks
                         // We hit with a second, more precise trace
                         if (target->player && g.trigger_enabled && ((target->curstate.team != lp->curstate.team) || g.trigger_team))
                         {
-                            g.engine_funcs->Con_Printf("Entity is also a valid player, firing at hitgroup: %i\n", trace.hitgroup);
                             cmd->buttons |= IN_ATTACK;
                         }
                     }
