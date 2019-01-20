@@ -6,16 +6,16 @@
 #include <Windows.h>
 #include <Psapi.h>
 
-namespace Memory
+namespace memory
 {
-	inline uint32_t SetMemoryProtection(uintptr_t base, size_t size, uint32_t protection)
+	inline uint32_t set_memory_protection(uintptr_t base, size_t size, uint32_t protection)
 	{
 		uint32_t oldProtection;
 		VirtualProtect((LPVOID)base, size, protection, (PDWORD)&oldProtection);
 		return oldProtection;
 	}
 
-	inline uintptr_t CreateExecutableMemory(const std::vector<uint8_t>& originalBytes, uintptr_t callAddress, uintptr_t returnAddress)
+	inline uintptr_t create_executable_memory(const std::vector<uint8_t>& originalBytes, uintptr_t callAddress, uintptr_t returnAddress)
 	{
 		size_t funcSize = 16 + originalBytes.size() + 8;
 		uint8_t* result = reinterpret_cast<uint8_t*>(std::malloc(funcSize));
@@ -51,15 +51,15 @@ namespace Memory
 		*(uint32_t*)(returnAddressOffset) = returnAddress;
 		
 		// Set protection so that we can read, write and execute
-		SetMemoryProtection(reinterpret_cast<uintptr_t>(result), funcSize, PAGE_EXECUTE_READWRITE);
+		set_memory_protection(reinterpret_cast<uintptr_t>(result), funcSize, PAGE_EXECUTE_READWRITE);
 
 		return reinterpret_cast<uintptr_t>(result);
 	}
 
-	inline uintptr_t HookFunc(uintptr_t hookAt, uintptr_t hookFunc, size_t neededBytes)
+	inline uintptr_t hook_func(uintptr_t hookAt, uintptr_t hookFunc, size_t neededBytes)
 	{
 		// Set protection so that we can read, write and execute
-		auto oldProtection = SetMemoryProtection(hookAt, neededBytes, PAGE_EXECUTE_READWRITE);
+		auto oldProtection = set_memory_protection(hookAt, neededBytes, PAGE_EXECUTE_READWRITE);
 
 		// Collect necessary bytes
 		std::vector<uint8_t> bytes;
@@ -68,18 +68,18 @@ namespace Memory
 			bytes.push_back(*(uint8_t*)(hookAt + i));
 		}
 
-		auto newFunc = CreateExecutableMemory(bytes, hookFunc, hookAt + 5);
+		auto newFunc = create_executable_memory(bytes, hookFunc, hookAt + 5);
 		intptr_t newOffset = newFunc - hookAt - 5;								// 32bit relative jumps ( - 5 because relative to next instruction )
 
 		*(uint8_t*)(hookAt) = 0xE9;		// Jump - 0xE9 0x00000000 - JMP 32bit relative
 		*(uint32_t*)(((uint8_t*)hookAt) + 1) = newOffset;
 
-		SetMemoryProtection(hookAt, neededBytes, oldProtection);
+		set_memory_protection(hookAt, neededBytes, oldProtection);
 
 		return newOffset;
 	}
 
-	inline std::pair<uintptr_t, uintptr_t> CreateExecutableMemory2(const std::vector<uint8_t>& originalBytes, uintptr_t callAddress, uintptr_t returnAddress)
+	inline std::pair<uintptr_t, uintptr_t> create_executable_memory2(const std::vector<uint8_t>& originalBytes, uintptr_t callAddress, uintptr_t returnAddress)
 	{
 		size_t funcSize = 20 + originalBytes.size();
 		uint8_t* result = reinterpret_cast<uint8_t*>(std::malloc(funcSize));
@@ -111,7 +111,7 @@ namespace Memory
 		*(uint32_t*)(returnAddressOffset) = returnAddress;
 
 		// Set protection so that we can read, write and execute
-		SetMemoryProtection(reinterpret_cast<uintptr_t>(result), funcSize, PAGE_EXECUTE_READWRITE);
+		set_memory_protection(reinterpret_cast<uintptr_t>(result), funcSize, PAGE_EXECUTE_READWRITE);
 
 		return std::make_pair(reinterpret_cast<uintptr_t>(result), postHookAddress);
 	}
@@ -119,7 +119,7 @@ namespace Memory
 	inline uintptr_t HookFunc2(uintptr_t hookAt, uintptr_t hookFunc, size_t neededBytes)
 	{
 		// Set protection so that we can read, write and execute
-		auto oldProtection = SetMemoryProtection(hookAt, neededBytes, PAGE_EXECUTE_READWRITE);
+		auto oldProtection = set_memory_protection(hookAt, neededBytes, PAGE_EXECUTE_READWRITE);
 
 		// Collect necessary bytes
 		std::vector<uint8_t> bytes;
@@ -128,18 +128,18 @@ namespace Memory
 			bytes.push_back(*(uint8_t*)(hookAt + i));
 		}
 
-		auto newFunc = CreateExecutableMemory2(bytes, hookFunc, hookAt + 5);
+		auto newFunc = create_executable_memory2(bytes, hookFunc, hookAt + 5);
 		intptr_t newOffset = newFunc.first - hookAt - 5;						// 32bit relative jumps ( - 5 because relative to next instruction )
 
 		*(uint8_t*)(hookAt) = 0xE9;		// Jump - 0xE9 0x00000000 - JMP 32bit relative
 		*(uint32_t*)(((uint8_t*)hookAt) + 1) = newOffset;
 
-		SetMemoryProtection(hookAt, neededBytes, oldProtection);
+		set_memory_protection(hookAt, neededBytes, oldProtection);
 
 		return newFunc.second;
 	}
 
-	inline uint32_t FindPattern(uint8_t* base, size_t size, std::vector<uint8_t> bytes, int32_t add = 0, bool substractModule = false)
+	inline uint32_t find_pattern(uint8_t* base, size_t size, std::vector<uint8_t> bytes, int32_t add = 0, bool substractModule = false)
 	{
 		for (size_t i = 0; i < size; i++)
 		{
@@ -162,7 +162,7 @@ namespace Memory
 		return 0;
 	}
 
-    inline MODULEINFO GetModuleInfo(std::string moduleName)
+    inline MODULEINFO get_module_info(std::string moduleName)
     {
         MODULEINFO info;
 		uint8_t* moduleHandle = (uint8_t*)GetModuleHandleA(moduleName.c_str());
@@ -171,16 +171,16 @@ namespace Memory
         return info;
     }
 
-	inline uint32_t FindPattern(std::string moduleName, std::vector<uint8_t> bytes, int32_t add = 0, bool substractModule = false)
+	inline uint32_t find_pattern(std::string moduleName, std::vector<uint8_t> bytes, int32_t add = 0, bool substractModule = false)
 	{
 		MODULEINFO info;
 		uint8_t* moduleHandle = (uint8_t*)GetModuleHandleA(moduleName.c_str());
 		GetModuleInformation(GetCurrentProcess(), (HMODULE)moduleHandle, &info, sizeof(info));
-		return FindPattern(reinterpret_cast<uint8_t*>(info.lpBaseOfDll), info.SizeOfImage, bytes, add, substractModule);
+		return find_pattern(reinterpret_cast<uint8_t*>(info.lpBaseOfDll), info.SizeOfImage, bytes, add, substractModule);
 	}
 
     // Simple RAII memory protection class
-    class MemoryProtect
+    class memory_protect
 	{
 		private:
 			uint32_t base;
@@ -188,7 +188,7 @@ namespace Memory
 			uint32_t old;
 
 		public:
-			MemoryProtect(void* base, size_t size, uint32_t level)
+			memory_protect(void* base, size_t size, uint32_t level)
 			{
 				this->base = (uint32_t)base;
 				this->size = size;
@@ -197,7 +197,7 @@ namespace Memory
 				VirtualProtect(base, this->size, level, (PDWORD)&this->old);
 			}
 
-			~MemoryProtect()
+			~memory_protect()
 			{
 				VirtualProtect((void*)this->base, this->size, this->old, NULL);
 			}
@@ -205,100 +205,100 @@ namespace Memory
 
 
     // VMT Hooking class
-    class VMTHook
+    class vmt_hook
 	{
 		public:
 			uint32_t** base;
-			uint32_t* oldVMT;
-			uint32_t* newVMT;
-			size_t size;
+			uint32_t* old_vmt;
+			uint32_t* new_vmt;
+			size_t _size;
 			bool hooked;
 
-			std::unique_ptr<MemoryProtect> protect;
+			std::unique_ptr<memory_protect> protect;
 
 		public:
-			VMTHook(void* base)
+			vmt_hook(void* base)
 			{
 				this->base = (uint32_t**)base;
-				this->oldVMT = *(uint32_t**)base;
-				this->size = this->Size();
-				this->newVMT = new uint32_t[size];
+				this->old_vmt = *(uint32_t**)base;
+				this->_size = this->size();
+				this->new_vmt = new uint32_t[this->_size];
 				this->hooked = false;
 
-				memcpy(this->newVMT, this->oldVMT, this->size * sizeof(uint32_t));
+				memcpy(this->new_vmt, this->old_vmt, this->_size * sizeof(uint32_t));
 			}
 
-			~VMTHook()
+			~vmt_hook()
 			{
-				this->UnHook();
-				delete[] this->newVMT;
+				this->unhook();
+				delete[] this->new_vmt;
 			}
 
-			size_t Size()
+			size_t size()
 			{
 				size_t i = 0;
-				while (this->oldVMT[i])
+				while (this->old_vmt[i])
 					i++;
 
 				return i;
 			}
 
-			void Hook()
+			void hook()
 			{
 				if (!this->hooked)
 				{
-					this->protect = std::make_unique<MemoryProtect>(this->base, this->size, PAGE_READWRITE);
-					*(uint32_t**)(this->base) = this->newVMT;
+					this->protect = std::make_unique<memory_protect>(this->base, this->_size, PAGE_READWRITE);
+					*(uint32_t**)(this->base) = this->new_vmt;
 					this->hooked = true;
 				}
 			}
 
-			void UnHook()
+			void unhook()
 			{
-				*(uint32_t**)(this->base) = this->oldVMT;
+				*(uint32_t**)(this->base) = this->old_vmt;
 				this->hooked = false;
 				this->protect.release();
 			}
 
-			void HookVFunc(void* func, uint32_t position)
+			void hook_vfunc(void* func, uint32_t position)
 			{
-				if (position > this->size)
+				if (position > this->_size)
 					return;
 
-				this->newVMT[position] = (uint32_t)func;
+				this->new_vmt[position] = (uint32_t)func;
 			}
 
 			template <typename T>
-			T GetVFunc(uint32_t position)
+			T get_vfunc(uint32_t position)
 			{
-				if (position > this->size)
+				if (position > this->_size)
 					return (T)nullptr;
 
-				return (T)this->newVMT[position];
+				return (T)this->new_vmt[position];
 			}
 
 			template <typename T>
-			T GetOVFunc(uint32_t position)
+			T get_original_vfunc(uint32_t position)
 			{
-				if (position > this->size)
+				if (position > this->_size)
 					return (T)nullptr;
 
-				return (T)this->oldVMT[position];
+				return (T)this->old_vmt[position];
 			}
 
             template <typename T>
-            T GetBase()
+            T get_base()
             {
                 return reinterpret_cast<T>(this->base);
             }
 	};
 
 	template <typename T>
-	T GetVFunction(void* base, uint32_t position)
+	T get_vfunc(void* base, uint32_t position)
 	{
-		uint32_t* VMT = *(uint32_t**)base;
+		uint32_t* vmt = *(uint32_t**)base;
 
-		return (T)(VMT[position]);
+		return (T)(vmt[position]);
 	}
 
 }

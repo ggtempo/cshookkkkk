@@ -9,40 +9,40 @@
 
 namespace utils
 {
-	struct ModuleInfo
+	struct module_info
 	{
-		HINSTANCE hInstance;
-		uint32_t fwdReason;
+		HINSTANCE instance;
+		uint32_t reason;
 		uint32_t pid;
 	};
 
-    BOOL CALLBACK EnumProcCallback(HWND hWnd, LPARAM lParam)
+    BOOL CALLBACK enum_proc_callback(HWND hwnd, LPARAM lparam)
     {
         static auto is_main_window = [](HWND handle) {
             return GetWindow(handle, GW_OWNER) == (HWND)0 && IsWindowVisible(handle);
         };
 
-        auto& data = *(std::pair<uint32_t, std::vector<HWND>>*)lParam;
+        auto& data = *(std::pair<uint32_t, std::vector<HWND>>*)lparam;
 
         unsigned long process_id = 0;
-        GetWindowThreadProcessId(hWnd, &process_id);
-        if (data.first != process_id || !is_main_window(hWnd))
+        GetWindowThreadProcessId(hwnd, &process_id);
+        if (data.first != process_id || !is_main_window(hwnd))
             return TRUE;
 
-        data.second.push_back(hWnd);
+        data.second.push_back(hwnd);
         return FALSE;
     }
 
-	inline HWND GetMainWindow(uint32_t pid)
+	inline HWND get_main_window(uint32_t pid)
 	{
 		std::pair<uint32_t, std::vector<HWND>> data;
 		data.first = pid;
 
-		EnumWindows(EnumProcCallback, (LPARAM)&data);
+		EnumWindows(enum_proc_callback, (LPARAM)&data);
 
 		// Just search for the largest window ...
-		HWND largestHandle = 0;
-		int32_t largestSize = 0;
+		HWND largest_handle = 0;
+		int32_t largest_size = 0;
 
 		for (auto window : data.second)
 		{
@@ -50,22 +50,22 @@ namespace utils
 			GetWindowRect(window, &r);
 
 			int32_t size = r.right * r.bottom;
-			if (size > largestSize)
+			if (size > largest_size)
 			{
-				largestHandle = window;
-				largestSize = size;
+				largest_handle = window;
+				largest_size = size;
 			}
 		}
 
-		if (!IsWindow(largestHandle))
+		if (!IsWindow(largest_handle))
 		{
 			auto i = 5;
 		}
 
-		return largestHandle;
+		return largest_handle;
 	}
 	
-	inline std::optional<std::wstring> GetBasePath(HMODULE hModule)
+	inline std::optional<std::wstring> get_base_path(HMODULE hModule)
 	{
 		wchar_t buf[MAX_PATH];
 		if (auto result = GetModuleFileName(hModule, buf, sizeof(wchar_t) * MAX_PATH); result > 0)

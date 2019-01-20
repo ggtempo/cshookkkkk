@@ -1,6 +1,6 @@
 #include <cstring>
 #include <Windows.h>
-#include "Hooks.hpp"
+#include "hooks.hpp"
 #include <gl/GL.h>
 
 #include "../Utils/globals.hpp"
@@ -11,7 +11,7 @@
 
 #include <iostream>
 
-namespace Hooks
+namespace hooks
 {
     typedef LRESULT(__stdcall*WNDPRC)(HWND, UINT, WPARAM, LPARAM);
     LRESULT CALLBACK hWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -21,12 +21,30 @@ namespace Hooks
         if (!g.first)
             ImGui_Impl_WndProcHandler(hWnd, uMsg, wParam, lParam);
 
+        // Key released
+        if (uMsg == WM_KEYUP)
+        {
+            if (wParam == VK_INSERT)
+            {
+                // Toggle menu
+                g.menu_enabled = !g.menu_enabled;
+            }
+        }
+
         auto& io = ImGui::GetIO();
-        if (io.WantCaptureMouse || io.WantCaptureKeyboard)
+        if (io.WantCaptureMouse || io.WantCaptureKeyboard || ImGui::IsMouseHoveringAnyWindow())
         {
             // Dont pass keyboard/mouse input to the game
             //return DefWindowProc(hWnd, uMsg, wParam, lParam);
+
+            io.MouseDrawCursor = true;
         }
+        else
+        {
+            io.MouseDrawCursor = false;
+        }
+
+        
 
         return reinterpret_cast<WNDPRC>(g.original_window_proc)(hWnd, uMsg, wParam, lParam);
     }
@@ -78,6 +96,8 @@ namespace Hooks
             ImGuiIO& io = ImGui::GetIO(); (void)io;
             auto& style = ImGui::GetStyle();
 
+            io.MouseDrawCursor = false;
+
             // Setup Dear ImGui style
             ImGui::StyleColorsDark();
             //ImGui::StyleColorsClassic();
@@ -90,26 +110,14 @@ namespace Hooks
         ImGui::NewFrame();
 
         
-        ImGui::Begin("Test Settings");
+        /*ImGui::Begin("Test Settings");
         {
             ImGui::Checkbox("Bhop", &g.bhop_enabled);
-            ImGui::Checkbox("View angle manipulation", &g.backtrack_enabled);
-            ImGui::InputFloat3("Aim angles test: ", g.angles2);
-            ImGui::Text("(original) Pitch: %f, Yaw: %f, Roll: %f\n", g.angles.x, g.angles.y, g.angles.z);
-            ImGui::Text("(new) Pitch: %f, Yaw: %f, Roll: %f\n", g.angles2.x, g.angles2.y, g.angles2.z);
-            ImGui::Text("(original) Forward: %f, Side: %f, Up: %f\n", g.move.x, g.move.y, g.move.z);
-            ImGui::Text("(new) Forward: %f, Side: %f, Up: %f\n", g.move2.x, g.move2.y, g.move2.z);
+            ImGui::Checkbox("Anti aim", &g.anti_aim_enabled);
 
             ImGui::Checkbox("Triggerbot", &g.trigger_enabled);
             ImGui::Checkbox("Triggerbot teammates", &g.trigger_team);
             ImGui::InputInt("Triggerbot bone", &g.trigger_bone);
-            ImGui::SliderFloat("Backtrack time", &g.backtrack_time, 0, 1000);
-
-            if (g.studio_model_renderer_hook)
-            {
-                auto time = g.studio_model_renderer_hook->GetBase<CStudioModelRenderer*>()->m_clTime;
-                ImGui::Text("Time is: %f\n", time);
-            }
 
             ImGui::SliderInt("Render mode: ", &g.render_mode, 0, render_modes::kRenderCount);
             ImGui::SliderInt("Render effects: ", &g.render_fx, 0, render_effects::kRenderFxCount);
@@ -123,7 +131,146 @@ namespace Hooks
             ImGui::InputInt("Trace mode: ", &g.trace_mode);
             ImGui::InputInt("Trace flags: ", &g.trace_flags);
         }
-        ImGui::End(); 
+        ImGui::End();*/
+
+        if (g.menu_enabled && ImGui::BeginMainMenuBar())
+        {
+            if (ImGui::Button("    Aimbot    "))
+                g.aimbot_menu_enabled = !g.aimbot_menu_enabled;
+
+            ImGui::SameLine();
+
+            if (ImGui::Button("    Trigger   "))
+                g.trigger_menu_enabled = !g.trigger_menu_enabled;
+
+
+            ImGui::SameLine();
+
+            if (ImGui::Button("      ESP     "))
+                g.esp_menu_enabled = !g.esp_menu_enabled;
+
+            ImGui::SameLine();
+
+            if (ImGui::Button("   Anti-Aim   "))
+                g.anti_aim_menu_enabled = !g.anti_aim_menu_enabled;
+
+            ImGui::SameLine();
+
+            if (ImGui::Button("     MISC     "))
+                g.misc_menu_enabled = !g.misc_menu_enabled;
+
+            ImGui::Text("CSHook by Dminik");
+
+            SYSTEMTIME time = {};
+            GetLocalTime(&time);
+
+            ImGui::Text("%02d:%02d:%0-2d", time.wHour, time.wMinute, time.wSecond);
+
+            ImGui::EndMainMenuBar();
+        }
+        
+
+        if (g.aimbot_menu_enabled)
+        {
+            ImGui::Begin("Aimbot");
+            ImGui::End();
+        }
+
+        if (g.trigger_menu_enabled)
+        {
+            static bool complex_hitboxes = false;
+
+            ImGui::Begin("Triggerbot");
+                ImGui::Checkbox("Triggerbot enabled", &g.trigger_enabled);
+                ImGui::Checkbox("Shoot team", &g.trigger_team);
+                ImGui::Checkbox("Show complex hitboxes", &complex_hitboxes);
+
+                if (complex_hitboxes)
+                {
+                    g.trigger_hitboxes_all = false;
+                    ImGui::ListBoxHeader("Hitboxes");
+                    {
+                        static auto& pelvis = g.trigger_hitboxes[hitbox_numbers::pelvis];
+                        static auto& left_top_leg = g.trigger_hitboxes[hitbox_numbers::left_top_leg];
+                        static auto& left_bottom_leg = g.trigger_hitboxes[hitbox_numbers::left_bottom_leg];
+                        static auto& left_foot = g.trigger_hitboxes[hitbox_numbers::left_foot];
+                        static auto& right_top_leg = g.trigger_hitboxes[hitbox_numbers::right_top_leg];
+                        static auto& right_bottom_leg = g.trigger_hitboxes[hitbox_numbers::right_bottom_leg];
+                        static auto& right_foot = g.trigger_hitboxes[hitbox_numbers::right_foot];
+                        static auto& torso_bottom = g.trigger_hitboxes[hitbox_numbers::torso_bottom];
+                        static auto& torso_top = g.trigger_hitboxes[hitbox_numbers::torso_top];
+                        static auto& neck = g.trigger_hitboxes[hitbox_numbers::neck];
+                        static auto& heart = g.trigger_hitboxes[hitbox_numbers::heart];
+                        static auto& head = g.trigger_hitboxes[hitbox_numbers::head];
+                        static auto& left_shoulder = g.trigger_hitboxes[hitbox_numbers::left_shoulder];
+                        static auto& left_arm_top = g.trigger_hitboxes[hitbox_numbers::left_arm_top];
+                        static auto& left_arm_bottom = g.trigger_hitboxes[hitbox_numbers::left_arm_bottom];
+                        static auto& left_hand = g.trigger_hitboxes[hitbox_numbers::left_hand];
+                        static auto& right_shoulder = g.trigger_hitboxes[hitbox_numbers::right_shoulder];
+                        static auto& right_arm_top = g.trigger_hitboxes[hitbox_numbers::right_arm_top];
+                        static auto& right_arm_bottom = g.trigger_hitboxes[hitbox_numbers::right_arm_bottom];
+                        static auto& right_hand = g.trigger_hitboxes[hitbox_numbers::right_hand];
+
+                        ImGui::Selectable("Head", &head);
+                        ImGui::Selectable("Neck", &neck);
+                        ImGui::Selectable("Torso top", &torso_top);
+                        ImGui::Selectable("Torso bottom", &torso_bottom);
+                        ImGui::Selectable("Pelvis", &pelvis);
+                        ImGui::Selectable("Heart", &heart);
+                        ImGui::Selectable("Left top leg", &left_top_leg);
+                        ImGui::Selectable("Left bottom leg", &left_bottom_leg);
+                        ImGui::Selectable("Left foot", &left_foot);
+                        ImGui::Selectable("Right top leg", &right_top_leg);
+                        ImGui::Selectable("Right bottom leg", &right_bottom_leg);
+                        ImGui::Selectable("Right foot", &right_foot );
+                        ImGui::Selectable("Left shoulder", &left_shoulder);
+                        ImGui::Selectable("Left arm top", &left_arm_top);
+                        ImGui::Selectable("Left arm bottom", &left_arm_bottom);
+                        ImGui::Selectable("Left hand", &left_hand);
+                        ImGui::Selectable("Right shoulder", &right_shoulder);
+                        ImGui::Selectable("Right arm top", &right_arm_top);
+                        ImGui::Selectable("Right arm bottom", &right_arm_bottom);
+                        ImGui::Selectable("Right hand", &right_hand);
+                    }
+                    ImGui::ListBoxFooter();
+                    ImGui::SameLine();
+                    if (ImGui::Button("Select / Deselect all"))
+                    {
+                        bool new_state = !g.trigger_hitboxes[0];
+                        for (auto& [key, value] : g.trigger_hitboxes)
+                        {
+                            value = new_state;
+                        }
+                    }
+                }
+                else
+                {
+                    g.trigger_hitboxes_all = true;
+                }
+                
+
+                ImGui::InputInt("Trigger bone debug", &g.trigger_bone);
+            ImGui::End();
+        }
+
+        if (g.esp_menu_enabled)
+        {
+            ImGui::Begin("ESP");
+            ImGui::End();
+        }
+
+        if (g.anti_aim_enabled)
+        {
+            ImGui::Begin("Anti-Aim");
+            ImGui::End();
+        }
+
+        if (g.misc_menu_enabled)
+        {
+            ImGui::Begin("Miscellaneous");
+                ImGui::Checkbox("Bhop enabled", &g.bhop_enabled);
+            ImGui::End();
+        }
 
         ImGui::Render();
         ImGui_Impl_RenderDrawData(ImGui::GetDrawData());
@@ -145,7 +292,7 @@ namespace Hooks
     void __fastcall hkStudioRenderModel(CStudioModelRenderer* ecx, void* edx)
     {
         static auto& g = globals::instance();
-        static auto oFunc = g.studio_model_renderer_hook->GetOVFunc<fnStudioRenderModel>(18);
+        static auto oFunc = g.studio_model_renderer_hook->get_original_vfunc<fnStudioRenderModel>(18);
         auto entity = g.engine_studio->GetCurrentEntity();
         auto local = g.engine_funcs->GetLocalPlayer();
 
@@ -267,10 +414,10 @@ namespace Hooks
         }
     }
 
-	uint32_t FindClientFuncs()
+	uint32_t find_client_functions()
 	{
-		DWORD dwExportPointer = Memory::FindPattern("hw.dll", { 0x68, 0x00, 0x00, 0x00, 0x00, 0xE8, 0x00, 0x00, 0x00, 0x00, 0x83, 0xC4, 0x0C, 0xE8, 0x00, 0x00, 0x00, 0x00, 0xE8, 0x00, 0x00, 0x00, 0x00 }, 1, false);
-		return dwExportPointer;
+		DWORD dw_export_pointer = memory::find_pattern("hw.dll", { 0x68, 0x00, 0x00, 0x00, 0x00, 0xE8, 0x00, 0x00, 0x00, 0x00, 0x83, 0xC4, 0x0C, 0xE8, 0x00, 0x00, 0x00, 0x00, 0xE8, 0x00, 0x00, 0x00, 0x00 }, 1, false);
+		return dw_export_pointer;
 	}
 
     void setup_hitboxes()
@@ -338,47 +485,6 @@ namespace Hooks
 			cmd->buttons &= ~IN_JUMP;
 		}
 
-        if (g.backtrack_enabled && GetAsyncKeyState(VK_LMENU))
-        {
-            cmd->lerp_msec -= g.backtrack_time;
-        }
-
-        if (g.backtrack_enabled)
-        {
-            auto view = cmd->viewangles;
-            auto new_view = g.angles2;
-            auto move = vec3_t{cmd->forwardmove, cmd->sidemove, cmd->upmove};
-            cmd->viewangles = new_view;
-
-            auto new_move = math::correct_movement(view, new_view, move);
-            
-            // Reset movement bits
-            cmd->buttons &= ~IN_FORWARD;
-            cmd->buttons &= ~IN_BACK;
-            cmd->buttons &= ~IN_LEFT;
-            cmd->buttons &= ~IN_RIGHT;
-
-            cmd->forwardmove = new_move.x;
-            cmd->sidemove = new_move.y;
-            cmd->upmove = new_move.z;
-
-            g.move2 = new_move;
-            g.move = move;//new_move;
-            g.angles = view;
-
-            g.angles2.y += g.backtrack_time;
-
-            while (g.angles2.y >= 360)
-            {
-                g.angles2.y -= 360;
-            }
-
-            while (g.angles2.y < 0)
-            {
-                g.angles2.y += 360;
-            }
-        }
-
         // Triggerbot testing
         if (g.trigger_enabled)
         {
@@ -395,7 +501,7 @@ namespace Hooks
             //auto trace = *g.engine_funcs->PM_TraceLine(start, end, PM_TRACELINE_PHYSENTSONLY, 0, lp->index);
             pmtrace_t trace = {};
 
-            g.engine_funcs->pEventAPI->EV_SetTraceHull(1);
+            g.engine_funcs->pEventAPI->EV_SetTraceHull(2);
             g.engine_funcs->pEventAPI->EV_PlayerTrace(start, end, PM_GLASS_IGNORE, -1, &trace);
             
             if (trace.fraction != 1.0f)
@@ -409,9 +515,24 @@ namespace Hooks
                     // We need to get the normal one
                     // From playermove?
                     auto target = g.engine_funcs->GetEntityByIndex(g.player_move->physents[trace.ent].info);
-                    
-                    auto& box = g.player_data[target->index].hitboxes[g.trigger_bone];
-                    if (auto trace2 = math::ray_hits_rbbox(start, forward, box.box, box.matrix); trace2.hit)
+
+                    bool hit = false;
+                    for (auto& [key, value] : g.trigger_hitboxes)
+                    {
+                        if (value || g.trigger_hitboxes_all)
+                        {
+                            auto& box = g.player_data[target->index].hitboxes[key];
+                            auto trace2 = math::ray_hits_rbbox(start, forward, box.box, box.matrix);
+
+                            if (trace2.hit)
+                            {
+                                hit = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (hit)
                     {
                         // We hit with a second, more precise trace
                         if (target->player && g.trigger_enabled && ((target->curstate.team != lp->curstate.team) || g.trigger_team))
@@ -419,16 +540,46 @@ namespace Hooks
                             cmd->buttons |= IN_ATTACK;
                         }
                     }
-
-                    // If we have a valid target
-                    /*if (target->player && g.trigger_enabled && ((target->curstate.team != lp->curstate.team) || g.trigger_team))
-                    {
-                        g.engine_funcs->Con_Printf("Entity is also a valid player, firing at hitgroup: %i\n", trace.hitgroup);
-                        // Fire
-                        cmd->buttons |= IN_ATTACK;
-                    }*/
                 }
             }
+        }
+
+        if (g.anti_aim_enabled && !(cmd->buttons & IN_ATTACK))
+        {
+            static float angle = 0.0f;
+
+            auto view = cmd->viewangles;
+            auto new_view = math::vec3{-89.0f, angle, 0.0f};
+            auto move = vec3_t{cmd->forwardmove, cmd->sidemove, cmd->upmove};
+            cmd->viewangles = new_view;
+
+            auto new_move = math::correct_movement(view, new_view, move);
+            
+            // Reset movement bits
+            cmd->buttons &= ~IN_FORWARD;
+            cmd->buttons &= ~IN_BACK;
+            cmd->buttons &= ~IN_LEFT;
+            cmd->buttons &= ~IN_RIGHT;
+
+            cmd->forwardmove = new_move.x;
+            cmd->sidemove = new_move.y;
+            cmd->upmove = new_move.z;
+
+            while (cmd->viewangles.y > 360)
+            {
+                cmd->viewangles.y -= 360;
+                angle -= 360;
+            }
+
+            while (cmd->viewangles.y < 0)
+            {
+                cmd->viewangles.y += 360;
+                angle += 360;
+            }
+
+            cmd->viewangles.z = 0;
+
+            angle += 50;
         }
 	}
 
@@ -440,7 +591,7 @@ namespace Hooks
 		std::memcpy(g.player_move, ppmove, sizeof(playermove_t));
 	}
 
-	void Init()
+	void init()
 	{
         static auto& g = globals::instance();
 		auto client = GetModuleHandle(L"client.dll");
@@ -450,7 +601,7 @@ namespace Hooks
 
 		g.player_move = new playermove_t();
 
-		cldll_func_t* funcs = reinterpret_cast<cldll_func_t*>(FindClientFuncs());
+		cldll_func_t* funcs = reinterpret_cast<cldll_func_t*>(find_client_functions());
 
 		g.original_client_funcs = new cldll_func_t();
 		std::memcpy(g.original_client_funcs, funcs, sizeof(cldll_func_t));
@@ -459,40 +610,35 @@ namespace Hooks
 		funcs->pClientMove = HUD_ClientMove;
 
         uintptr_t wglSwapBuffersLoc = reinterpret_cast<uintptr_t>(GetProcAddress(GetModuleHandle(L"opengl32.dll"), "wglSwapBuffers"));
-        owglSwapBuffers = reinterpret_cast<wglSwapBuffersFn>(Memory::HookFunc2(wglSwapBuffersLoc, reinterpret_cast<uintptr_t>(hwglSwapBuffers), 5));
+        owglSwapBuffers = reinterpret_cast<wglSwapBuffersFn>(memory::HookFunc2(wglSwapBuffersLoc, reinterpret_cast<uintptr_t>(hwglSwapBuffers), 5));
         g.original_window_proc = SetWindowLongPtr(g.main_window, GWL_WNDPROC, (LONG_PTR)&hWndProc);
 
         /*uintptr_t glBeginLoc = reinterpret_cast<uintptr_t>(GetProcAddress(GetModuleHandle(L"opengl32.dll"), "glBegin"));
-        oglBegin = reinterpret_cast<glBeginFn>(Memory::HookFunc2(glBeginLoc, reinterpret_cast<uintptr_t>(hglBegin), 5));
+        oglBegin = reinterpret_cast<glBeginFn>(memory::hook_func2(glBeginLoc, reinterpret_cast<uintptr_t>(hglBegin), 5));
 
         uintptr_t glEndLoc = reinterpret_cast<uintptr_t>(GetProcAddress(GetModuleHandle(L"opengl32.dll"), "glEnd"));
-        oglEnd = reinterpret_cast<glEndFn>(Memory::HookFunc2(glEndLoc, reinterpret_cast<uintptr_t>(hglEnd), 5));*/
+        oglEnd = reinterpret_cast<glEndFn>(memory::hook_func2(glEndLoc, reinterpret_cast<uintptr_t>(hglEnd), 5));*/
 
-        uint32_t offset = reinterpret_cast<uint32_t>(Memory::GetModuleInfo("client.dll").lpBaseOfDll);
-        auto HUD_GetStudioModelInterface = (uint32_t)Hooks::GetClientFuncs()->pStudioInterface;//reinterpret_cast<uintptr_t>(GetProcAddress(GetModuleHandle(L"client.dll"), "HUD_GetStudioModelInterface"));
+        uint32_t offset = reinterpret_cast<uint32_t>(memory::get_module_info("client.dll").lpBaseOfDll);
+        auto HUD_GetStudioModelInterface = (uint32_t)hooks::get_client_funcs()->pStudioInterface;
 
         g.engine_studio = *reinterpret_cast<engine_studio_api_s**>(HUD_GetStudioModelInterface + 0x1A);
         auto studio_model_renderer = *reinterpret_cast<CStudioModelRenderer**>(HUD_GetStudioModelInterface + 0x27);
 
-        g.studio_model_renderer_hook = new Memory::VMTHook(studio_model_renderer);
-        g.studio_model_renderer_hook->HookVFunc(reinterpret_cast<void*>(hkStudioRenderModel), 18);
-        g.studio_model_renderer_hook->Hook();
+        g.studio_model_renderer_hook = new memory::vmt_hook(studio_model_renderer);
+        g.studio_model_renderer_hook->hook_vfunc(reinterpret_cast<void*>(hkStudioRenderModel), 18);
+        g.studio_model_renderer_hook->hook();
 
         g.original_studio_entity_light = reinterpret_cast<uintptr_t>(g.engine_studio->StudioEntityLight);
         g.engine_studio->StudioEntityLight = hkStudioEntityLight;
 	}
 
-    void Print(const char* text)
-    {
-        globals::instance().engine_funcs->pfnConsolePrint(text);
-    }
-
-    cl_enginefunc_t* GetEngineFuncs()
+    cl_enginefunc_t* get_engine_funcs()
     {
         return globals::instance().engine_funcs;
     }
 
-    cldll_func_t* GetClientFuncs()
+    cldll_func_t* get_client_funcs()
     {
         return globals::instance().original_client_funcs;
     }

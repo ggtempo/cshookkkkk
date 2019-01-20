@@ -3,13 +3,12 @@
 #include "../HLSDK/enginefuncs.hpp"
 #include "../HLSDK/clientfuncs.hpp"
 #include "../HLSDK/playermove.hpp"
-#include "../Memory/Memory.hpp"
+#include "../Memory/memory.hpp"
 
-namespace Hooks
+namespace hooks
 {
-    void Init();
-    void Print(const char* text);
+    void init();
 
-    cl_enginefunc_t*    GetEngineFuncs();
-    cldll_func_t*       GetClientFuncs();
+    cl_enginefunc_t*    get_engine_funcs();
+    cldll_func_t*       get_client_funcs();
 }

@@ -10,43 +10,31 @@
 
 #include "HLSDK/Studio.hpp"
 
-#include "Memory/Memory.hpp"
-#include "Hooks/Hooks.hpp"
+#include "Memory/memory.hpp"
+#include "Hooks/hooks.hpp"
 #include "Utils/utils.hpp"
 #include "ImGui/imgui.h"
 #include "ImGui/imgui_impl.h"
 
 #include "Utils/globals.hpp"
 
-utils::ModuleInfo* moduleInfo;
-bool first = true;
-
-
+utils::module_info* module_info;
 
 void ThreadMain()
 {
     auto& g = globals::instance();
 
-
 	auto parentProcess = GetModuleHandle(NULL);
-	g.main_window = utils::GetMainWindow(moduleInfo->pid);
+	g.main_window = utils::get_main_window(module_info->pid);
 
-    Hooks::Init();
-    
-    /*std::stringstream ss;
-    ss << "HUD_...: " << std::hex << (uint32_t)GetProcAddress(GetModuleHandle(L"client.dll"), "HUD_GetStudioModelInterface") << "\n";
-    ss << "g_Studio: " << std::hex << (uint32_t)g.engine_studio << "\n";
-    ss << "Studio: " << std::hex << (uint32_t)studioModelRenderer << "\n";
-    ss << "Studio2: " << std::hex << (uint32_t)studioModelRenderer2 << "\n";
-    ss << "Offset: " << std::hex << offset << "\n";
-    Hooks::Print(ss.str().c_str());*/
+    hooks::init();
 }
 
-BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD fwdReason, LPVOID reserved)
+BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved)
 {
-	if (fwdReason == DLL_PROCESS_ATTACH)
+	if (reason == DLL_PROCESS_ATTACH)
 	{
-		DisableThreadLibraryCalls(hInstance);
+		DisableThreadLibraryCalls(instance);
 
 		/*if (auto basePath = Utils::GetBasePath(hInstance); basePath)
 		{
@@ -55,10 +43,10 @@ BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD fwdReason, LPVOID reserved)
 
 		auto pid = GetCurrentProcessId();
 
-		moduleInfo = new utils::ModuleInfo();
-		moduleInfo->fwdReason = fwdReason;
-		moduleInfo->hInstance = hInstance;
-		moduleInfo->pid = pid;
+		module_info = new utils::module_info();
+		module_info->reason = reason;
+		module_info->instance = instance;
+		module_info->pid = pid;
 
 
 		CreateThread(NULL, NULL, reinterpret_cast<LPTHREAD_START_ROUTINE>(&ThreadMain), nullptr, NULL, NULL);
@@ -77,12 +65,4 @@ BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD fwdReason, LPVOID reserved)
         0x00, 0x00, 0x00, 0x00, 0xA1, 0x00, 0x00, 0x00, 0x00, 0x85, 0xC0, 0x74, 0x27, 0x68, 0x00, 0x00,
         0x00, 0x00, 0x68, 0x00, 0x00, 0x00, 0x00, 0x6A, 0x01, 0xFF, 0xD0, 0x83, 0xC4, 0x0C, 0x85, 0xC0
      }, 30);
-    g_Studio = reinterpret_cast<engine_studio_api_s*>(studio + offset);
-
-	
-
-    std::stringstream ss;
-    ss << "g_Studio: " << std::hex << g_Studio << "\n";
-    ss << "Studio: " << std::hex << (uint32_t)studio << "\n";
-    ss << "Offset: " << std::hex << offset << "\n";
-    Hooks::Print(ss.str().c_str());*/
+    g_Studio = reinterpret_cast<engine_studio_api_s*>(studio + offset);*/

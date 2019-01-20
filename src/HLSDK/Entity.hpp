@@ -209,3 +209,28 @@ typedef struct cl_entity_s
 	int						visframe;		// last frame this entity was found in an active leaf
 	colorVec				cvFloorColor;
 } cl_entity_t;
+
+enum hitbox_numbers
+{
+    pelvis,
+    left_top_leg,
+    left_bottom_leg,
+    left_foot,
+    right_top_leg,
+    right_bottom_leg,
+    right_foot,
+    torso_bottom,
+    torso_top,
+    neck,
+    heart,
+    head,
+    left_shoulder,
+    left_arm_top,
+    left_arm_bottom,
+    left_hand,
+    right_shoulder,
+    right_arm_top,
+    right_arm_bottom,
+    right_hand,
+    unknown,
+};
