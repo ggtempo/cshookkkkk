@@ -90,6 +90,7 @@ class globals
         playermove_t*		player_move;
 
         uintptr_t           original_studio_entity_light;
+        uintptr_t           original_team_info;
 
         uint32_t original_window_proc;
         HWND main_window;

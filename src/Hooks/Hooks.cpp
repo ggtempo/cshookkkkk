@@ -93,7 +93,7 @@ namespace hooks
             IMGUI_CHECKVERSION();
             ImGui::CreateContext();
 
-            ImGuiIO& io = ImGui::GetIO(); (void)io;
+            ImGuiIO& io = ImGui::GetIO();
             auto& style = ImGui::GetStyle();
 
             io.MouseDrawCursor = false;
@@ -135,36 +135,65 @@ namespace hooks
 
         if (g.menu_enabled && ImGui::BeginMainMenuBar())
         {
+            SYSTEMTIME time = {};
+            GetLocalTime(&time);
+
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0, 0.0));
+
+            auto title_bar_size = ImGui::GetWindowSize();
+
+            ImGui::SameLine();
+
+            ImGui::SetCursorPos(ImVec2(0.0, 0.0));
             if (ImGui::Button("    Aimbot    "))
                 g.aimbot_menu_enabled = !g.aimbot_menu_enabled;
 
             ImGui::SameLine();
+            ImGui::Separator();
 
             if (ImGui::Button("    Trigger   "))
                 g.trigger_menu_enabled = !g.trigger_menu_enabled;
 
-
             ImGui::SameLine();
+            ImGui::Separator();
 
             if (ImGui::Button("      ESP     "))
                 g.esp_menu_enabled = !g.esp_menu_enabled;
 
             ImGui::SameLine();
+            ImGui::Separator();
 
             if (ImGui::Button("   Anti-Aim   "))
                 g.anti_aim_menu_enabled = !g.anti_aim_menu_enabled;
 
             ImGui::SameLine();
+            ImGui::Separator();
 
             if (ImGui::Button("     MISC     "))
                 g.misc_menu_enabled = !g.misc_menu_enabled;
 
-            ImGui::Text("CSHook by Dminik");
+            ImGui::SameLine();
+            ImGui::Separator();
 
-            SYSTEMTIME time = {};
-            GetLocalTime(&time);
+            float right_offset = 10;
 
-            ImGui::Text("%02d:%02d:%0-2d", time.wHour, time.wMinute, time.wSecond);
+            {
+                auto size = ImGui::CalcTextSize("00:00:00");
+                right_offset += size.x;
+                ImGui::SetCursorPos(ImVec2(title_bar_size.x - right_offset, 0));
+                ImGui::Text("%02d:%02d:%0-2d", time.wHour, time.wMinute, time.wSecond);
+
+                right_offset += 110;
+            }
+
+            {
+                auto size = ImGui::CalcTextSize("CSHook by Dminik");
+                
+                ImGui::SetCursorPos(ImVec2((title_bar_size.x / 2) - (size.x / 2), 0));
+                ImGui::Text("CSHook by Dminik");
+            }
+
+            ImGui::PopStyleVar();
 
             ImGui::EndMainMenuBar();
         }
@@ -591,10 +620,23 @@ namespace hooks
 		std::memcpy(g.player_move, ppmove, sizeof(playermove_t));
 	}
 
+    typedef int(*fnTeamInfo)(const char*, int, void*);
+    int hkTeamInfo(const char *pszName, int iSize, void *pbuf)
+    {
+        static auto& g = globals::instance();
+        static auto original_func = reinterpret_cast<fnTeamInfo>(g.original_team_info);
+
+        g.engine_funcs->Con_Printf("Team Info called with: %s, iSize: %d, pbuf: 0x%X\n", pszName, iSize, pbuf);
+
+        return original_func(pszName, iSize, pbuf);
+    }
+
 	void init()
 	{
         static auto& g = globals::instance();
 		auto client = GetModuleHandle(L"client.dll");
+        auto opengl_dll = GetModuleHandle(L"opengl32.dll");
+        auto hw_dll = GetModuleHandle(L"hw.dll");
 
 		auto cInitialize = reinterpret_cast<uint8_t*>(GetProcAddress(client, "Initialize"));
 		g.engine_funcs = reinterpret_cast<cl_enginefunc_t*>(*(uint32_t*)(cInitialize + 0x1C));
@@ -609,15 +651,9 @@ namespace hooks
 		funcs->pCL_CreateMove = CL_CreateMove;
 		funcs->pClientMove = HUD_ClientMove;
 
-        uintptr_t wglSwapBuffersLoc = reinterpret_cast<uintptr_t>(GetProcAddress(GetModuleHandle(L"opengl32.dll"), "wglSwapBuffers"));
+        uintptr_t wglSwapBuffersLoc = reinterpret_cast<uintptr_t>(GetProcAddress(opengl_dll, "wglSwapBuffers"));
         owglSwapBuffers = reinterpret_cast<wglSwapBuffersFn>(memory::HookFunc2(wglSwapBuffersLoc, reinterpret_cast<uintptr_t>(hwglSwapBuffers), 5));
         g.original_window_proc = SetWindowLongPtr(g.main_window, GWL_WNDPROC, (LONG_PTR)&hWndProc);
-
-        /*uintptr_t glBeginLoc = reinterpret_cast<uintptr_t>(GetProcAddress(GetModuleHandle(L"opengl32.dll"), "glBegin"));
-        oglBegin = reinterpret_cast<glBeginFn>(memory::hook_func2(glBeginLoc, reinterpret_cast<uintptr_t>(hglBegin), 5));
-
-        uintptr_t glEndLoc = reinterpret_cast<uintptr_t>(GetProcAddress(GetModuleHandle(L"opengl32.dll"), "glEnd"));
-        oglEnd = reinterpret_cast<glEndFn>(memory::hook_func2(glEndLoc, reinterpret_cast<uintptr_t>(hglEnd), 5));*/
 
         uint32_t offset = reinterpret_cast<uint32_t>(memory::get_module_info("client.dll").lpBaseOfDll);
         auto HUD_GetStudioModelInterface = (uint32_t)hooks::get_client_funcs()->pStudioInterface;
@@ -631,6 +667,32 @@ namespace hooks
 
         g.original_studio_entity_light = reinterpret_cast<uintptr_t>(g.engine_studio->StudioEntityLight);
         g.engine_studio->StudioEntityLight = hkStudioEntityLight;
+        //g.original_hook_usr_msg = reinterpret_cast<uintptr_t>(g.engine_funcs->pfnHookUserMsg);
+        //g.engine_funcs->pfnHookUserMsg = reinterpret_cast<pfnEngSrc_pfnHookUserMsg_t>(hkHookUserMsg);
+
+        auto hook_usr_msg = (uint32_t)g.engine_funcs->pfnHookUserMsg;
+        g.engine_funcs->Con_Printf("Hook: 0x%X\n", hook_usr_msg);
+        uint32_t register_usr_msg = *(uint32_t*)(hook_usr_msg + 0x1B) + hook_usr_msg + (0x1F);
+        g.engine_funcs->Con_Printf("Register at 0x%X\n", register_usr_msg);
+        uint32_t first_usr_msg_ptr = *(uint32_t*)(register_usr_msg + 0xD);
+        usermsg_t* first_usr_msg_entry = *reinterpret_cast<usermsg_t**>(first_usr_msg_ptr);
+
+        g.engine_funcs->Con_Printf("Hook: 0x%X, Register: 0x%X, First PTR: 0x%X, First Entry: 0x%X\n", hook_usr_msg, register_usr_msg, first_usr_msg_ptr, first_usr_msg_entry);
+
+        // Messages are a linked list
+        auto element = first_usr_msg_entry;
+        while (element)
+        {
+            if (std::strcmp(element->szMsg, "TeamInfo") == 0)
+            {
+               // We found the right one
+               g.engine_funcs->Con_Printf("Found TeamInfo at 0x%X\n", element->pfn);
+               g.original_team_info = (uintptr_t)element->pfn;
+               element->pfn = hkTeamInfo;
+            }
+            // Go to the next one
+            element = element->pNext;
+        }
 	}
 
     cl_enginefunc_t* get_engine_funcs()

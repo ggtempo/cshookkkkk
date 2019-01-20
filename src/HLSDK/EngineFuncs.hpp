@@ -119,6 +119,14 @@ typedef struct event_api_s
 } event_api_t;
 
 
+typedef struct usermsg_s {
+	int iMsgId;
+	unsigned int dwUnknown;
+	char szMsg[16];
+	usermsg_s* pNext;
+	pfnUserMsgHook pfn;
+} usermsg_t;
+
 // Function type declarations for engine exports
 typedef HSPRITE						(*pfnEngSrc_pfnSPR_Load_t )			( const char *szPicName );
 typedef int							(*pfnEngSrc_pfnSPR_Frames_t )			( HSPRITE hPic );
