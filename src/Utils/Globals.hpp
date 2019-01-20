@@ -22,10 +22,6 @@ class globals
             this->anti_aim_menu_enabled = false;
             this->misc_menu_enabled = false;
 
-            this->trigger_enabled = false;
-            this->trigger_team = false;
-            this->trigger_hitboxes_all = true;
-
             this->anti_aim_enabled = false;
             this->bhop_enabled = false;
             
@@ -64,9 +60,6 @@ class globals
         
         bool bhop_enabled;
 
-        bool trigger_enabled;
-        bool trigger_team;
-
         int render_mode;
         int render_fx;
         int s_nf;
@@ -75,10 +68,6 @@ class globals
 
         int trace_mode = 0;
         int trace_flags = 0;
-
-        std::unordered_map<int, bool> trigger_hitboxes;
-        bool trigger_hitboxes_all;
-        int trigger_bone = 0;
 
         // Hooks
         memory::vmt_hook* studio_model_renderer_hook;
