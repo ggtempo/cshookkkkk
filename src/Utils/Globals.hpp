@@ -1,3 +1,4 @@
+#pragma once
 #include "../Memory/memory.hpp"
 #include "../HLSDK/enginefuncs.hpp"
 #include "../HLSDK/clientfuncs.hpp"
@@ -23,7 +24,7 @@ class globals
 
             this->trigger_enabled = false;
             this->trigger_team = false;
-            this->trigger_hitboxes_all = false;
+            this->trigger_hitboxes_all = true;
 
             this->anti_aim_enabled = false;
             this->bhop_enabled = false;
@@ -97,5 +98,6 @@ class globals
 
         // Helpers and useful data
         bool first;
+        custom::player_data local_player_data;
         std::unordered_map<int, custom::player_data> player_data;
 };

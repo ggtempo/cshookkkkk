@@ -11,8 +11,16 @@ namespace custom
         math::matrix3x4 matrix;
     };
 
+    enum player_team
+    {
+        CT,
+        T,
+        UNKNOWN
+    };
+
     struct player_data
     {
+        player_team team;
         std::unordered_map<int, angled_bbox> hitboxes;
     };
 }

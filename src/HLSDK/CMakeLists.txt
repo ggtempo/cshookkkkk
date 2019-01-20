@@ -10,4 +10,5 @@ target_sources(
         "${CMAKE_CURRENT_LIST_DIR}/Vec3.hpp"
         "${CMAKE_CURRENT_LIST_DIR}/Studio.hpp"
         "${CMAKE_CURRENT_LIST_DIR}/StudioStructures.hpp"
+        "${CMAKE_CURRENT_LIST_DIR}/Parsemsg.hpp"
 )

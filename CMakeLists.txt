@@ -44,6 +44,7 @@ add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/src/Hooks/")
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/src/Memory/")
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/src/ImGui/")
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/src/Utils/")
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/src/Features/")
 
 target_link_libraries(
     CSHook                                                     # Linking various libraries

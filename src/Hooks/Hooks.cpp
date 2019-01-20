@@ -9,6 +9,10 @@
 #include "../ImGui/imgui.h"
 #include "../ImGui/imgui_impl.h"
 
+#include "../HLSDK/Parsemsg.hpp"
+
+#include "../Features/AntiAim/antiaim.hpp"
+
 #include <iostream>
 
 namespace hooks
@@ -288,10 +292,9 @@ namespace hooks
             ImGui::End();
         }
 
-        if (g.anti_aim_enabled)
+        if (g.anti_aim_menu_enabled)
         {
-            ImGui::Begin("Anti-Aim");
-            ImGui::End();
+            features::anti_aim::instance().show_menu();
         }
 
         if (g.misc_menu_enabled)
@@ -564,7 +567,7 @@ namespace hooks
                     if (hit)
                     {
                         // We hit with a second, more precise trace
-                        if (target->player && g.trigger_enabled && ((target->curstate.team != lp->curstate.team) || g.trigger_team))
+                        if (target->player && g.trigger_enabled && ((g.player_data[target->index].team != g.local_player_data.team) || g.trigger_team))
                         {
                             cmd->buttons |= IN_ATTACK;
                         }
@@ -573,43 +576,7 @@ namespace hooks
             }
         }
 
-        if (g.anti_aim_enabled && !(cmd->buttons & IN_ATTACK))
-        {
-            static float angle = 0.0f;
-
-            auto view = cmd->viewangles;
-            auto new_view = math::vec3{-89.0f, angle, 0.0f};
-            auto move = vec3_t{cmd->forwardmove, cmd->sidemove, cmd->upmove};
-            cmd->viewangles = new_view;
-
-            auto new_move = math::correct_movement(view, new_view, move);
-            
-            // Reset movement bits
-            cmd->buttons &= ~IN_FORWARD;
-            cmd->buttons &= ~IN_BACK;
-            cmd->buttons &= ~IN_LEFT;
-            cmd->buttons &= ~IN_RIGHT;
-
-            cmd->forwardmove = new_move.x;
-            cmd->sidemove = new_move.y;
-            cmd->upmove = new_move.z;
-
-            while (cmd->viewangles.y > 360)
-            {
-                cmd->viewangles.y -= 360;
-                angle -= 360;
-            }
-
-            while (cmd->viewangles.y < 0)
-            {
-                cmd->viewangles.y += 360;
-                angle += 360;
-            }
-
-            cmd->viewangles.z = 0;
-
-            angle += 50;
-        }
+        features::anti_aim::instance().create_move(frametime, cmd, active);
 	}
 
 	void HUD_ClientMove(playermove_t* ppmove, int server)
@@ -626,7 +593,41 @@ namespace hooks
         static auto& g = globals::instance();
         static auto original_func = reinterpret_cast<fnTeamInfo>(g.original_team_info);
 
-        g.engine_funcs->Con_Printf("Team Info called with: %s, iSize: %d, pbuf: 0x%X\n", pszName, iSize, pbuf);
+        BEGIN_READ(pbuf, iSize);
+
+        int iIndex = READ_BYTE();
+        char *szTeam = READ_STRING();
+
+        auto lp = g.engine_funcs->GetLocalPlayer();
+
+        if (iIndex >= 0 && iIndex < g.engine_funcs->GetMaxClients())
+        {
+            custom::player_team team;
+            if (std::strcmp(szTeam, "CT") == 0)
+            {
+                // Player is a ct
+                team = custom::player_team::CT;
+            }
+            else if (std::strcmp(szTeam, "TERRORIST") == 0)
+            {
+                // Player is a t
+                team = custom::player_team::T;
+            }
+            else
+            {
+                // Player is a spectator/unknown
+                team = custom::player_team::UNKNOWN;
+            }
+
+            if (iIndex == lp->index)
+            {
+                g.local_player_data.team = team;
+            }
+            else
+            {
+                g.player_data[iIndex].team = team;
+            }
+        }
 
         return original_func(pszName, iSize, pbuf);
     }
@@ -671,13 +672,9 @@ namespace hooks
         //g.engine_funcs->pfnHookUserMsg = reinterpret_cast<pfnEngSrc_pfnHookUserMsg_t>(hkHookUserMsg);
 
         auto hook_usr_msg = (uint32_t)g.engine_funcs->pfnHookUserMsg;
-        g.engine_funcs->Con_Printf("Hook: 0x%X\n", hook_usr_msg);
         uint32_t register_usr_msg = *(uint32_t*)(hook_usr_msg + 0x1B) + hook_usr_msg + (0x1F);
-        g.engine_funcs->Con_Printf("Register at 0x%X\n", register_usr_msg);
         uint32_t first_usr_msg_ptr = *(uint32_t*)(register_usr_msg + 0xD);
         usermsg_t* first_usr_msg_entry = *reinterpret_cast<usermsg_t**>(first_usr_msg_ptr);
-
-        g.engine_funcs->Con_Printf("Hook: 0x%X, Register: 0x%X, First PTR: 0x%X, First Entry: 0x%X\n", hook_usr_msg, register_usr_msg, first_usr_msg_ptr, first_usr_msg_entry);
 
         // Messages are a linked list
         auto element = first_usr_msg_entry;
@@ -686,7 +683,6 @@ namespace hooks
             if (std::strcmp(element->szMsg, "TeamInfo") == 0)
             {
                // We found the right one
-               g.engine_funcs->Con_Printf("Found TeamInfo at 0x%X\n", element->pfn);
                g.original_team_info = (uintptr_t)element->pfn;
                element->pfn = hkTeamInfo;
             }
