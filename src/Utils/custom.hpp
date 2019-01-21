@@ -18,6 +18,18 @@ namespace custom
         UNKNOWN
     };
 
+    union color4f
+    {
+        struct
+        {
+            float r, g, b, a;
+        };
+        struct
+        {
+            float clr[4];
+        };
+    };
+
     struct player_data
     {
         player_team team;

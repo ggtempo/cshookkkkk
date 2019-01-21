@@ -229,7 +229,7 @@ namespace hooks
     void __fastcall hkStudioRenderModel(CStudioModelRenderer* ecx, void* edx)
     {
         static auto& g = globals::instance();
-        static auto oFunc = g.studio_model_renderer_hook->get_original_vfunc<fnStudioRenderModel>(18);
+        static auto original_func = g.studio_model_renderer_hook->get_original_vfunc<fnStudioRenderModel>(18);
         auto entity = g.engine_studio->GetCurrentEntity();
         auto local = g.engine_funcs->GetLocalPlayer();
 

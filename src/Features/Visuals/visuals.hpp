@@ -8,7 +8,16 @@ namespace features
         private:
             visuals()
             {
-                this->enabled = false;
+                this->chams = false;
+                this->chams_team = false;
+
+                this->team_color = {
+                    0.0, 0.0, 1.0, 0.3
+                };
+
+                this->enemy_color = {
+                    1.0, 0.0, 0.0, 0.3
+                };
             }
         
         public:
@@ -22,6 +31,10 @@ namespace features
             void show_menu();
 
         private:
-            bool enabled;
+            bool chams;
+            bool chams_team;
+
+            custom::color4f team_color;
+            custom::color4f enemy_color;
     };
 }
