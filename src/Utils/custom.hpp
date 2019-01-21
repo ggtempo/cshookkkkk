@@ -1,6 +1,7 @@
 #pragma once
 #include "math.hpp"
 #include <unordered_map>
+#include <string>
 
 namespace custom
 {
@@ -30,9 +31,165 @@ namespace custom
         };
     };
 
+    struct weapon_data
+    {
+        int id;
+        float next_primary_attack;
+        float next_secondary_attack;
+        float next_attack;
+        bool in_reload;
+
+        int clip;
+        int ammo;
+
+        unsigned int seed;
+    };
+
     struct player_data
     {
         player_team team;
+        weapon_data weapon;
         std::unordered_map<int, angled_bbox> hitboxes;
     };
+
+    static const std::unordered_map<int, const char*> key_map = {
+            {VK_LBUTTON, "Mouse 1"},
+			{VK_RBUTTON, "Mouse 3"},
+			{VK_MBUTTON, "Mouse 2"},
+			{VK_XBUTTON1, "Mouse 5" },
+			{VK_XBUTTON2, "Mouse 4" },
+			{VK_BACK, "Backspace"},
+			{VK_TAB, "Tab" },
+			{VK_RETURN, "Return"},
+			{VK_SHIFT, "Shift"},
+			{VK_RSHIFT, "Right shift"},
+			{VK_CONTROL, "Ctrl"},
+			{VK_MENU, "Menu"},
+			{VK_ESCAPE, "ESC"},
+			{VK_INSERT, "Insert" },
+			{VK_DELETE, "Delete" },
+            {VK_LEFT, "Left"},
+            {VK_RIGHT, "Right"},
+            {VK_UP, "Up"},
+            {VK_DOWN, "Down"},
+			{VK_F1, "F1"},
+			{VK_F2, "F2"},
+			{VK_F3, "F3"},
+			{VK_F4, "F4"},
+			{VK_F5, "F5"},
+			{VK_F6, "F6"},
+			{VK_F7, "F7"},
+			{VK_F8, "F8"},
+			{VK_F9, "F9"},
+			{VK_F10, "F10"},
+			{VK_F11, "F11"},
+			{VK_F12, "F12"},
+			{VK_PRIOR, "VK_PRIOR"},
+			{VK_NEXT, "VK_NEXT"},
+            {VK_SPACE, "Space"},
+            {33, "!"},
+            {34, "\""},
+            {35, "#"},
+            {36, "$"},
+            {37, "%"},
+            {38, "&"},
+            {39, "'"},
+            {40, "("},
+            {41, ")"},
+            {42, "*"},
+            {43, "+"},
+            {44, ","},
+            {45, "-"},
+            {46, "."},
+            {47, "/"},
+            {48, "0"},
+            {49, "1"},
+            {50, "2"},
+            {51, "3"},
+            {52, "4"},
+            {53, "5"},
+            {54, "6"},
+            {55, "7"},
+            {56, "8"},
+            {57, "9"},
+            {58, ":"},
+            {59, ";"},
+            {60, "<"},
+            {61, "="},
+            {62, ">"},
+            {63, "?"},
+            {64, "@"},
+            {65, "A"},
+            {66, "B"},
+            {67, "C"},
+            {68, "D"},
+            {69, "E"},
+            {70, "F"},
+            {71, "G"},
+            {72, "H"},
+            {73, "I"},
+            {74, "J"},
+            {75, "K"},
+            {76, "L"},
+            {77, "M"},
+            {78, "N"},
+            {79, "O"},
+            {80, "P"},
+            {81, "Q"},
+            {82, "R"},
+            {83, "S"},
+            {84, "T"},
+            {85, "U"},
+            {86, "V"},
+            {87, "W"},
+            {88, "X"},
+            {89, "Y"},
+            {90, "Z"},
+            {91, "["},
+            {92, "\\"},
+            {93, "]"},
+            {94, "^"},
+            {95, "_"},
+            {96, "`"},
+            {97, "a"},
+            {98, "b"},
+            {99, "c"},
+            {100, "d"},
+            {101, "e"},
+            {102, "f"},
+            {103, "g"},
+            {104, "h"},
+            {105, "i"},
+            {106, "j"},
+            {107, "k"},
+            {108, "l"},
+            {109, "m"},
+            {110, "n"},
+            {111, "o"},
+            {112, "p"},
+            {113, "q"},
+            {114, "r"},
+            {115, "s"},
+            {116, "t"},
+            {117, "u"},
+            {118, "v"},
+            {119, "w"},
+            {120, "x"},
+            {121, "y"},
+            {122, "z"},
+            {123, "{"},
+            {124, "|"},
+            {125, "}"},
+            {126, "~"}
+    };
+
+    inline const char* get_key_name(int key)
+    {
+        if (auto result = key_map.find(key); result != key_map.end())
+        {
+            return result->second;
+        }
+
+        return NULL;
+    }
 }

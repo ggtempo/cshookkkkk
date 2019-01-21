@@ -116,7 +116,7 @@ namespace memory
 		return std::make_pair(reinterpret_cast<uintptr_t>(result), postHookAddress);
 	}
 
-	inline uintptr_t HookFunc2(uintptr_t hookAt, uintptr_t hookFunc, size_t neededBytes)
+	inline uintptr_t hook_func2(uintptr_t hookAt, uintptr_t hookFunc, size_t neededBytes)
 	{
 		// Set protection so that we can read, write and execute
 		auto oldProtection = set_memory_protection(hookAt, neededBytes, PAGE_EXECUTE_READWRITE);

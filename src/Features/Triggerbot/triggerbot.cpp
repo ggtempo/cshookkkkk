@@ -1,5 +1,7 @@
 #include "triggerbot.hpp"
 #include "../../ImGui/imgui.h"
+#include "../../ImGui/imgui_custom.hpp"
+#include <chrono>
 
 namespace features
 {
@@ -7,7 +9,7 @@ namespace features
     {
         static auto& g = globals::instance();
 
-        if (this->enabled)
+        if (this->enabled && (!this->on_key || GetAsyncKeyState(this->key)))
         {
             vec3_t start = g.player_move->origin + g.player_move->view_ofs;
             vec3_t angles = cmd->viewangles;
@@ -58,7 +60,21 @@ namespace features
                         // We hit with a second, more precise trace
                         if (target->player && ((g.player_data[target->index].team != g.local_player_data.team) || this->team))
                         {
-                            cmd->buttons |= IN_ATTACK;
+                            auto now = std::chrono::high_resolution_clock().now().time_since_epoch();
+                            auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now).count();
+
+
+                            if (((this->next_fire != -1) && (this->next_fire <= ms)) || (this->delay == 0))
+                            {
+                                cmd->buttons |= IN_ATTACK;
+                                this->next_fire = -1;
+                                g.engine_funcs->Con_Printf("[Triggerbot] fire!\n");
+                            }
+                            else if (this->next_fire == -1)
+                            {
+                                this->next_fire = ms + this->delay;
+                                g.engine_funcs->Con_Printf("[Triggerbot] next_fire %i, current msec %i\n", this->next_fire, ms);
+                            }
                         }
                     }
                 }
@@ -73,6 +89,11 @@ namespace features
         ImGui::Begin("Triggerbot");
             ImGui::Checkbox("Triggerbot enabled", &this->enabled);
             ImGui::Checkbox("Shoot team", &this->team);
+            ImGui::DragInt("Delay", (int32_t*)&this->delay, 1.0, 0, 1000, "%f ms");
+            ImGui::Checkbox("###Trigger on key", &this->on_key);
+            ImGui::SameLine();
+            ImGui::Hotkey("Trigger key", this->key);
+            
             ImGui::Checkbox("Show complex hitboxes", &complex_hitboxes);
 
             if (complex_hitboxes)

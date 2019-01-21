@@ -12,6 +12,11 @@ namespace features
                 this->enabled = false;
                 this->team = false;
 
+                this->delay = 0;
+                this->next_fire = -1;
+
+                this->on_key = false;
+                this->key = -1;
 
             }
         
@@ -29,6 +34,10 @@ namespace features
             bool enabled;
             bool team;
             bool all_hitboxes;
+            int64_t delay;
+            int64_t next_fire;
+            bool on_key;
+            int key;
             std::unordered_map<int, bool> target_hitboxes;
     };
 }

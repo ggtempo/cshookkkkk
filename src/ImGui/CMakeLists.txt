@@ -15,4 +15,5 @@ target_sources(
         "${CMAKE_CURRENT_LIST_DIR}/imstb_textedit.h"
         "${CMAKE_CURRENT_LIST_DIR}/imstb_rectpack.h"
         "${CMAKE_CURRENT_LIST_DIR}/imgui.h"
+        "${CMAKE_CURRENT_LIST_DIR}/imgui_custom.hpp"
 )

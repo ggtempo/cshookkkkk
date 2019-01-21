@@ -22,7 +22,8 @@ class globals
             this->anti_aim_menu_enabled = false;
             this->misc_menu_enabled = false;
 
-            this->anti_aim_enabled = false;
+            this->no_visual_recoil = false;
+            this->no_recoil = false;
             this->bhop_enabled = false;
             
             
@@ -35,6 +36,9 @@ class globals
             this->studio_model_renderer_hook = nullptr;
 
             this->first = true;
+
+            this->catch_keys = false;
+            this->captured_key = -1;
         }
 
     public:
@@ -55,10 +59,10 @@ class globals
         bool anti_aim_menu_enabled;
         bool misc_menu_enabled;
 
-        // Hack settings
-        bool anti_aim_enabled;
-        
+        // Hack settings        
         bool bhop_enabled;
+        bool no_visual_recoil;
+        bool no_recoil;
 
         int render_mode;
         int render_fx;
@@ -81,12 +85,19 @@ class globals
 
         uintptr_t           original_studio_entity_light;
         uintptr_t           original_team_info;
+        uintptr_t           original_cur_weapon;
 
-        uint32_t original_window_proc;
-        HWND main_window;
+        uintptr_t           original_window_proc;
+        uintptr_t           original_wgl_swap_buffers;
+        HWND                main_window;
 
         // Helpers and useful data
         bool first;
         custom::player_data local_player_data;
         std::unordered_map<int, custom::player_data> player_data;
+        math::vec3 punch_angles;
+
+        // Key catching
+        bool catch_keys;
+        int captured_key;
 };

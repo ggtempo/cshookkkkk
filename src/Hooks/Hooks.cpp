@@ -20,7 +20,7 @@
 namespace hooks
 {
     typedef LRESULT(__stdcall*WNDPRC)(HWND, UINT, WPARAM, LPARAM);
-    LRESULT CALLBACK hWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+    LRESULT CALLBACK hk_wnd_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     {
         static auto& g = globals::instance();
 
@@ -35,6 +35,27 @@ namespace hooks
                 // Toggle menu
                 g.menu_enabled = !g.menu_enabled;
             }
+
+            if (g.catch_keys)
+            {
+                g.captured_key = wParam;
+            }                
+        }
+        else if (uMsg == WM_LBUTTONUP && g.catch_keys)
+        {
+            g.captured_key = MK_LBUTTON;
+        }
+        else if (uMsg == WM_RBUTTONUP && g.catch_keys)
+        {
+            g.captured_key = MK_RBUTTON;
+        }
+        else if (uMsg == WM_MBUTTONUP && g.catch_keys)
+        {
+            g.captured_key = MK_MBUTTON;
+        }
+        else if (uMsg == WM_XBUTTONUP && g.catch_keys)
+        {
+            g.captured_key = GET_XBUTTON_WPARAM(wParam) + 0x4;
         }
 
         auto& io = ImGui::GetIO();
@@ -55,11 +76,12 @@ namespace hooks
         return reinterpret_cast<WNDPRC>(g.original_window_proc)(hWnd, uMsg, wParam, lParam);
     }
 
-    typedef BOOL(__stdcall *wglSwapBuffersFn)(HDC);
-    wglSwapBuffersFn owglSwapBuffers;
-    BOOL __stdcall hwglSwapBuffers(HDC hDc)
+    BOOL __stdcall hk_wgl_swap_buffers(HDC hDc)
     {
+        typedef BOOL(__stdcall *wglSwapBuffersFn)(HDC);
+
         static auto& g = globals::instance();
+        static auto original_func = reinterpret_cast<wglSwapBuffersFn>(g.original_wgl_swap_buffers);
 
         GLint viewport[4];
         glGetIntegerv(GL_VIEWPORT, viewport);
@@ -181,31 +203,33 @@ namespace hooks
         }
         
 
-        if (g.aimbot_menu_enabled)
+        if (g.aimbot_menu_enabled && g.menu_enabled)
         {
             ImGui::Begin("Aimbot");
             ImGui::End();
         }
 
-        if (g.trigger_menu_enabled)
+        if (g.trigger_menu_enabled && g.menu_enabled)
         {
             features::triggerbot::instance().show_menu();
         }
 
-        if (g.esp_menu_enabled)
+        if (g.esp_menu_enabled && g.menu_enabled)
         {
             features::visuals::instance().show_menu();
         }
 
-        if (g.anti_aim_menu_enabled)
+        if (g.anti_aim_menu_enabled && g.menu_enabled)
         {
             features::anti_aim::instance().show_menu();
         }
 
-        if (g.misc_menu_enabled)
+        if (g.misc_menu_enabled && g.menu_enabled)
         {
             ImGui::Begin("Miscellaneous");
                 ImGui::Checkbox("Bhop enabled", &g.bhop_enabled);
+                ImGui::Checkbox("Visual no recoil", &g.no_visual_recoil);
+                ImGui::Checkbox("No recoil", &g.no_recoil);
             ImGui::End();
         }
 
@@ -222,11 +246,11 @@ namespace hooks
         glMatrixMode(GL_PROJECTION);
         glPopMatrix();
 
-        return owglSwapBuffers(hDc);
+        return original_func(hDc);
     }
 
     typedef void(__thiscall* fnStudioRenderModel)(void* ecx);
-    void __fastcall hkStudioRenderModel(CStudioModelRenderer* ecx, void* edx)
+    void __fastcall hk_studio_render_model(CStudioModelRenderer* ecx, void* edx)
     {
         static auto& g = globals::instance();
         static auto original_func = g.studio_model_renderer_hook->get_original_vfunc<fnStudioRenderModel>(18);
@@ -311,7 +335,7 @@ namespace hooks
     }
 
     typedef void(__cdecl*fnStudioEntityLight)(alight_s* plight);
-    void hkStudioEntityLight(alight_s* plight)
+    void hk_studio_entity_light(alight_s* plight)
     {
         static auto& g = globals::instance();
         static auto oFunc = reinterpret_cast<fnStudioEntityLight>(g.original_studio_entity_light);
@@ -338,6 +362,15 @@ namespace hooks
         
         features::triggerbot::instance().create_move(frametime, cmd, active);
         features::anti_aim::instance().create_move(frametime, cmd, active);
+
+        //g.engine_funcs->Con_Printf("Player with weapon id %i can fire in: %f, %f\n", g.local_player_data.weapon.id, g.local_player_data.weapon.next_attack, g.local_player_data.weapon.next_primary_attack);
+
+        if (g.no_recoil && (cmd->buttons & IN_ATTACK))
+        {
+            g.engine_funcs->Con_Printf("No recoil active\n");
+            cmd->viewangles -= g.punch_angles * 2;
+            cmd->viewangles.z = 0.0f;
+        }
 	}
 
 	void HUD_ClientMove(playermove_t* ppmove, int server)
@@ -349,7 +382,7 @@ namespace hooks
 	}
 
     typedef int(*fnTeamInfo)(const char*, int, void*);
-    int hkTeamInfo(const char *pszName, int iSize, void *pbuf)
+    int hk_team_info(const char *pszName, int iSize, void *pbuf)
     {
         static auto& g = globals::instance();
         static auto original_func = reinterpret_cast<fnTeamInfo>(g.original_team_info);
@@ -393,6 +426,52 @@ namespace hooks
         return original_func(pszName, iSize, pbuf);
     }
 
+    void hk_post_run_cmd( struct local_state_s *from, struct local_state_s *to, struct usercmd_s *cmd, int runfuncs, double time, unsigned int random_seed )
+    {
+        static auto& g = globals::instance();
+        static auto original_func = g.original_client_funcs->pPostRunCmd;
+
+        // Update local weapon
+        g.local_player_data.weapon.id = to->client.m_iId;
+        g.local_player_data.weapon.clip = to->weapondata[to->client.m_iId].m_iClip;
+        g.local_player_data.weapon.next_primary_attack = to->weapondata[to->client.m_iId].m_flNextPrimaryAttack;
+        g.local_player_data.weapon.next_secondary_attack = to->weapondata[to->client.m_iId].m_flNextSecondaryAttack;
+        g.local_player_data.weapon.in_reload = to->weapondata[to->client.m_iId].m_fInReload || !to->weapondata[to->client.m_iId].m_iClip;
+        g.local_player_data.weapon.next_attack = to->client.m_flNextAttack;
+
+        return original_func(from, to, cmd, runfuncs, time, random_seed);
+    }
+
+    // For now useless
+    int hk_cur_weapon(const char *pszName, int iSize, void *pbuf )
+    {
+        typedef int(*fnCurWeapon)(const char *pszName, int iSize, void *pbuf );
+        static auto& g = globals::instance();
+        static auto original_func = reinterpret_cast<fnCurWeapon>(g.original_cur_weapon);
+
+        return original_func(pszName, iSize, pbuf);
+    }
+
+    typedef void(*fnCalcRefDef)(ref_params_t*);
+    void hk_calc_ref_def(ref_params_t* params)
+    {
+        static auto& g = globals::instance();
+        static auto original_func = g.original_client_funcs->pCalcRefdef;//reinterpret_cast<fnCalcRefDef>(g.original_ref_def);
+
+        g.punch_angles.x = params->punchangle[0];
+        g.punch_angles.y = params->punchangle[1];
+        g.punch_angles.z = params->punchangle[2];
+
+        if (g.no_visual_recoil)
+        {
+            params->punchangle[0] = 0.0f;
+            params->punchangle[1] = 0.0f;
+            params->punchangle[2] = 0.0f;
+        }
+
+        original_func(params);
+    }
+
 	void init()
 	{
         static auto& g = globals::instance();
@@ -405,17 +484,20 @@ namespace hooks
 
 		g.player_move = new playermove_t();
 
-		cldll_func_t* funcs = reinterpret_cast<cldll_func_t*>(find_client_functions());
-
+        // Find and save original/hooked client funcs
+		g.client_funcs = reinterpret_cast<cldll_func_t*>(find_client_functions());
 		g.original_client_funcs = new cldll_func_t();
-		std::memcpy(g.original_client_funcs, funcs, sizeof(cldll_func_t));
+		std::memcpy(g.original_client_funcs, g.client_funcs, sizeof(cldll_func_t));
 
-		funcs->pCL_CreateMove = CL_CreateMove;
-		funcs->pClientMove = HUD_ClientMove;
+        // Hook client funcs
+		g.client_funcs->pCL_CreateMove = CL_CreateMove;
+		g.client_funcs->pClientMove = HUD_ClientMove;
+        g.client_funcs->pCalcRefdef = hk_calc_ref_def;
+        g.client_funcs->pPostRunCmd = hk_post_run_cmd;
 
-        uintptr_t wglSwapBuffersLoc = reinterpret_cast<uintptr_t>(GetProcAddress(opengl_dll, "wglSwapBuffers"));
-        owglSwapBuffers = reinterpret_cast<wglSwapBuffersFn>(memory::HookFunc2(wglSwapBuffersLoc, reinterpret_cast<uintptr_t>(hwglSwapBuffers), 5));
-        g.original_window_proc = SetWindowLongPtr(g.main_window, GWL_WNDPROC, (LONG_PTR)&hWndProc);
+        uintptr_t wgl_swap_buffers = reinterpret_cast<uintptr_t>(GetProcAddress(opengl_dll, "wglSwapBuffers"));
+        g.original_wgl_swap_buffers = reinterpret_cast<uintptr_t>(memory::hook_func2(wgl_swap_buffers, reinterpret_cast<uintptr_t>(hk_wgl_swap_buffers), 5));
+        g.original_window_proc = SetWindowLongPtr(g.main_window, GWL_WNDPROC, (LONG_PTR)&hk_wnd_proc);
 
         uint32_t offset = reinterpret_cast<uint32_t>(memory::get_module_info("client.dll").lpBaseOfDll);
         auto HUD_GetStudioModelInterface = (uint32_t)hooks::get_client_funcs()->pStudioInterface;
@@ -424,13 +506,15 @@ namespace hooks
         auto studio_model_renderer = *reinterpret_cast<CStudioModelRenderer**>(HUD_GetStudioModelInterface + 0x27);
 
         g.studio_model_renderer_hook = new memory::vmt_hook(studio_model_renderer);
-        g.studio_model_renderer_hook->hook_vfunc(reinterpret_cast<void*>(hkStudioRenderModel), 18);
+        g.studio_model_renderer_hook->hook_vfunc(reinterpret_cast<void*>(hk_studio_render_model), 18);
         g.studio_model_renderer_hook->hook();
 
         g.original_studio_entity_light = reinterpret_cast<uintptr_t>(g.engine_studio->StudioEntityLight);
-        g.engine_studio->StudioEntityLight = hkStudioEntityLight;
+        g.engine_studio->StudioEntityLight = hk_studio_entity_light;
         //g.original_hook_usr_msg = reinterpret_cast<uintptr_t>(g.engine_funcs->pfnHookUserMsg);
         //g.engine_funcs->pfnHookUserMsg = reinterpret_cast<pfnEngSrc_pfnHookUserMsg_t>(hkHookUserMsg);
+
+        
 
         auto hook_usr_msg = (uint32_t)g.engine_funcs->pfnHookUserMsg;
         uint32_t register_usr_msg = *(uint32_t*)(hook_usr_msg + 0x1B) + hook_usr_msg + (0x1F);
@@ -445,7 +529,7 @@ namespace hooks
             {
                // We found the right one
                g.original_team_info = (uintptr_t)element->pfn;
-               element->pfn = hkTeamInfo;
+               element->pfn = hk_team_info;
             }
             // Go to the next one
             element = element->pNext;
