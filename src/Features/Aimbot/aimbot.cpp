@@ -24,7 +24,6 @@ namespace features
                 vec3_t center = (transformed_bbmin + transformed_bbmax) * 0.5;
 
                 auto angle = (center - start).normalize().to_angles().normalize_angle();
-                angle.x *= -1;
                 cmd->viewangles = angle;
                 //g.engine_funcs->SetViewAngles(angle);
             }
@@ -142,7 +141,6 @@ namespace features
 
                     float distance = (center - origin).length();
                     vec3_t needed_angle = (center - origin).normalize().to_angles().normalize_angle();
-                    needed_angle.x *= -1;
 
                     float fov = this->get_fov_to_target(angles, needed_angle, distance);
                     if (fov < best_fov)

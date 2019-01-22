@@ -346,15 +346,50 @@ namespace hooks
 
 
                 //auto trace = *g.engine_funcs->PM_TraceLine(start, end, PM_TRACELINE_PHYSENTSONLY, 0, lp->index);
-                pmtrace_t trace = {};
+                pmtrace_t world_trace = {};
 
+                // For some reason, the trace functions are very imprecise when concerning players
+                // However, they seem to be precise when tracing just against the world
+                // So, we can check if the trace hit the world
                 g.engine_funcs->pEventAPI->EV_SetTraceHull(2);
-                g.engine_funcs->pEventAPI->EV_PlayerTrace(start, center, PM_GLASS_IGNORE, -1, &trace);
-                auto trace_entity = g.engine_funcs->pEventAPI->EV_IndexFromTrace(&trace);
-
-                if (trace_entity == i)
+                g.engine_funcs->pEventAPI->EV_PlayerTrace(start, center, PM_WORLD_ONLY, -1, &world_trace);
+                
+                if (world_trace.fraction == 1.0f)
                 {
-                    hitbox.visible = true;
+                    // If not, check if we hit a non player with another trace
+                    // To check against boxes/doors/whatever
+
+                    pmtrace_t trace = {};
+                    g.engine_funcs->pEventAPI->EV_SetTraceHull(2);
+                    g.engine_funcs->pEventAPI->EV_PlayerTrace(start, center, PM_GLASS_IGNORE, -1, &trace);
+                    auto trace_entity_index = g.engine_funcs->pEventAPI->EV_IndexFromTrace(&trace);
+                    
+                    if (!trace_entity_index)
+                    {
+                        // We didn't hit any entity, thus the hitbox is visible
+                        hitbox.visible = true;
+                    }
+                    else
+                    {
+                        // We hit another entity
+                        auto trace_entity = g.engine_funcs->GetEntityByIndex(trace_entity_index);
+
+                        if (!trace_entity->player)
+                        {
+                            // Entity is not a player, thus is a map object
+                            hitbox.visible = false;
+                        }
+                        else// if (((trace_entity->index != i) && (trace_entity != local) && (trace_entity->index != local->index)))
+                        {
+                            // We hit a different player, thus we consider hitbox visible
+                            hitbox.visible = true;
+                        }
+                    }
+                }
+                else
+                {
+                    // We hit the world
+                    hitbox.visible = false;
                 }
             }
         }

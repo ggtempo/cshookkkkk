@@ -187,7 +187,7 @@ typedef struct vec3_s
                     pitch += 360;
             }
             
-            angles.x = pitch;
+            angles.x = -pitch;
             angles.y = yaw;
             angles.z = 0;
 
