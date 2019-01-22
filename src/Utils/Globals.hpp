@@ -86,6 +86,8 @@ class globals
         uintptr_t           original_studio_entity_light;
         uintptr_t           original_team_info;
         uintptr_t           original_cur_weapon;
+        uintptr_t           original_score_attrib;
+        uintptr_t           original_studio_check_bbox;
 
         uintptr_t           original_window_proc;
         uintptr_t           original_wgl_swap_buffers;

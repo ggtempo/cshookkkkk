@@ -16,16 +16,22 @@ namespace features
 
             auto best_target = this->find_best_target(start, angles);
 
-            if (best_target.target_id != -1)
+            if (best_target.target_id != -1 && best_target.target_hitbox_id != -1)
             {
+                g.engine_funcs->Con_Printf("Aiming at target: %i (hitbox %i)\n", best_target.target_id, best_target.target_hitbox_id);
+
                 auto& hitbox = g.player_data[best_target.target_id].hitboxes[best_target.target_hitbox_id];
                 vec3_t transformed_bbmin = hitbox.matrix.transform_vec3(hitbox.box.bbmin);
                 vec3_t transformed_bbmax = hitbox.matrix.transform_vec3(hitbox.box.bbmax);
                 vec3_t center = (transformed_bbmin + transformed_bbmax) * 0.5;
 
-                auto angle = (center - start).normalize().to_angles().normalize_angle();
-                cmd->viewangles = angle;
-                //g.engine_funcs->SetViewAngles(angle);
+                if (g.local_player_data.weapon.next_attack <= 0.0 && g.local_player_data.weapon.next_primary_attack <= 0.0)
+                {
+                    auto angle = (center - start).normalize().to_angles().normalize_angle();
+                    cmd->viewangles = angle;
+                    if (!this->silent)
+                        g.engine_funcs->SetViewAngles(angle);
+                }
             }
         }
     }
@@ -37,8 +43,10 @@ namespace features
         ImGui::Begin("Aimbot");
             ImGui::Checkbox("Aimbot enabled", &this->enabled);
             ImGui::Checkbox("Aim team", &this->team);
+            ImGui::Checkbox("Silent", &this->silent);
             ImGui::DragInt("Delay", (int32_t*)&this->delay, 1.0, 0, 1000, "%f ms");
             ImGui::Checkbox("###Aim on key", &this->on_key);
+            
             ImGui::SameLine();
             ImGui::Hotkey("Aim key", this->key);
             
@@ -122,7 +130,7 @@ namespace features
             auto entity = g.engine_funcs->GetEntityByIndex(i);
 
             // Check if its valid
-            if (!entity || entity == local || entity->index == local->index || !entity->player)
+            if (g.player_data[entity->index].dormant || !g.player_data[entity->index].alive)
                 continue;
 
             if ((g.player_data[entity->index].team == g.local_player_data.team) && !this->team)

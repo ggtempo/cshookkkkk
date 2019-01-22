@@ -26,7 +26,7 @@ namespace features
             {
                 auto entity = g.engine_funcs->GetEntityByIndex(i);
 
-                if (!entity || entity == local || entity->index == local->index)
+                if (g.player_data[entity->index].dormant || !g.player_data[entity->index].alive)
                     continue;
 
                 if ((g.player_data[entity->index].team == g.local_player_data.team) && !this->team)
@@ -41,8 +41,8 @@ namespace features
                             auto now = std::chrono::high_resolution_clock().now().time_since_epoch();
                             auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now).count();
 
-
-                            if (((this->next_fire != -1) && (this->next_fire <= ms)) || (this->delay == 0))
+                            if (((this->next_fire != -1) && (this->next_fire <= ms)) || (this->delay == 0) &&
+                                g.local_player_data.weapon.next_attack <= 0.0 && g.local_player_data.weapon.next_primary_attack <= 0.0)
                             {
                                 cmd->buttons |= IN_ATTACK;
                                 this->next_fire = -1;

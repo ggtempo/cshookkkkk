@@ -48,7 +48,9 @@ namespace custom
 
     struct player_data
     {
-        player_team team;
+        bool alive = false;
+        bool dormant = true;
+        player_team team = player_team::UNKNOWN;
         weapon_data weapon;
         std::unordered_map<int, angled_bbox> hitboxes;
     };

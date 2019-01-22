@@ -20,7 +20,7 @@ namespace features
 
                 case aa_mode_pitch::down_unsafe:
                     new_view.x = -179.0f;
-                    move.x *= -1;
+                    //move.x *= -1;
                     break;
 
                 case aa_mode_pitch::up_emotion:
@@ -29,7 +29,7 @@ namespace features
 
                 case aa_mode_pitch::up_unsafe:
                     new_view.x = 179.0f;
-                    move.x *= -1;
+                    //move.x *= -1;
                     break;
             }
 
@@ -53,16 +53,11 @@ namespace features
                     break;
             }
 
-            while (angle >= 360.0f)
-                angle -= 360.0f;
-
-            while (angle < 0.0f)
-                angle += 360.0f;
+            if (angle > 360)
+                angle -= 360;
 
             
-            cmd->viewangles = new_view;
-
-            cmd->viewangles.z = 0;
+            cmd->viewangles = new_view.normalize_angle();
         }
     }
 

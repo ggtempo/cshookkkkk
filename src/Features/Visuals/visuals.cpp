@@ -46,6 +46,28 @@ namespace features
             glDisable(GL_BLEND);
             glDisable(GL_DEPTH_TEST);
 
+            // Bone test
+            glPointSize(6.0);
+            
+            for (auto& [key, hitbox] : g.player_data[entity->index].hitboxes)
+            {
+                vec3_t transformed_bbmin = hitbox.matrix.transform_vec3(hitbox.box.bbmin);
+                vec3_t transformed_bbmax = hitbox.matrix.transform_vec3(hitbox.box.bbmax);
+                vec3_t center = (transformed_bbmin + transformed_bbmax) * 0.5;
+
+                if (hitbox.visible)
+                {
+                    glColor3f(0.0, 1.0, 0.0);
+                }
+                else
+                {
+                    glColor3f(1.0, 0.0, 0.0);
+                }
+                glBegin(GL_POINTS);
+                glVertex3f(center.x, center.y, center.z);
+                glEnd();
+            }
+            
 
             glEnable(GL_DEPTH_TEST);
             glEnable(GL_TEXTURE_2D);

@@ -223,4 +223,11 @@ typedef struct vec3_s
 
             return *this;
         }
+
+        bool is_zero() const
+        {
+            return  this->x == 0.0 &&
+                    this->y == 0.0 &&
+                    this->z == 0.0;
+        }
 } vec3_t;

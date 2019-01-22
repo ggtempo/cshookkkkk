@@ -385,6 +385,8 @@ namespace hooks
                             hitbox.visible = true;
                         }
                     }
+
+                    //hitbox.visible = true;
                 }
                 else
                 {
@@ -395,15 +397,77 @@ namespace hooks
         }
     }
 
+    void update_status()
+    {
+        static auto& g = globals::instance();
+        auto local = g.engine_funcs->GetLocalPlayer();
+
+        // Reset everyone as dormant
+        for (auto& [key, value] : g.player_data)
+        {
+            value.dormant = true;
+        }
+
+        for (size_t i = 1; i < g.engine_funcs->GetMaxClients(); i++)
+        {
+            auto entity = g.engine_funcs->GetEntityByIndex(i);
+
+            auto updated = true;
+
+            // Check if local player exists
+            if (!updated || !(local))
+                updated = false;
+
+            // Check if exists or is a local player
+            if (!updated || !(entity) || (entity == local) || (entity->index == local->index) || entity->index < 0 || entity->index > g.engine_funcs->GetMaxClients())
+                updated = false;
+
+            // Check if is a player or has a model/gun model
+            if (!updated || !(entity->model) || !(entity->player) || !(entity->curstate.weaponmodel))
+                updated = false;
+
+            // Check if the player belongs to a team
+            if (!updated || g.player_data[entity->index].team == custom::player_team::UNKNOWN)
+                updated = false;
+
+            // Mins and maxs
+            if (!updated || entity->curstate.mins.is_zero() || entity->curstate.maxs.is_zero())
+                updated = false;
+
+            if (!updated || entity->curstate.messagenum < local->curstate.messagenum)
+                updated = false;
+
+            /*if (!updated || (local->curstate.iuser1 == 4 && local->curstate.iuser2 == entity->index))
+                updated = false;*/
+
+            g.player_data[entity->index].dormant = !updated;
+        }
+    }
+
     typedef void(__cdecl*fnStudioEntityLight)(alight_s* plight);
     void hk_studio_entity_light(alight_s* plight)
     {
         static auto& g = globals::instance();
-        static auto oFunc = reinterpret_cast<fnStudioEntityLight>(g.original_studio_entity_light);
+        static auto original_func = reinterpret_cast<fnStudioEntityLight>(g.original_studio_entity_light);
         setup_hitboxes();
 
         
-        oFunc(plight);
+        original_func(plight);
+    }
+
+    int hk_studio_check_bbox()
+    {
+        typedef int(*fnStudioCheckBBox)();
+        static auto& g = globals::instance();
+        static auto original_func = reinterpret_cast<fnStudioCheckBBox>(g.original_studio_check_bbox);
+
+        auto entity = g.engine_studio->GetCurrentEntity();
+
+
+        if (!g.player_data[entity->index].dormant && g.player_data[entity->index].alive)
+            return 1;
+
+        return original_func();
     }
 
 	void CL_CreateMove(float frametime, usercmd_t *cmd, int active)
@@ -420,6 +484,7 @@ namespace hooks
         //auto original_move = vec3_s{cmd->forwardmove, cmd->sidemove, cmd->}
 
         update_visibility();
+        update_status();
 
 		if (cmd->buttons & IN_JUMP && !(g.player_move->flags & FL_ONGROUND) && g.bhop_enabled)
 		{
@@ -434,9 +499,10 @@ namespace hooks
 
         if (g.no_recoil && (cmd->buttons & IN_ATTACK))
         {
-            g.engine_funcs->Con_Printf("No recoil active\n");
             cmd->viewangles -= g.punch_angles * 2;
             cmd->viewangles.z = 0.0f;
+
+            cmd->viewangles.normalize_angle();
         }
 
         auto move = vec3_t{cmd->forwardmove, cmd->sidemove, cmd->upmove};
@@ -462,27 +528,27 @@ namespace hooks
 	}
 
     typedef int(*fnTeamInfo)(const char*, int, void*);
-    int hk_team_info(const char *pszName, int iSize, void *pbuf)
+    int hk_team_info(const char *name, int size, void *buffer)
     {
         static auto& g = globals::instance();
         static auto original_func = reinterpret_cast<fnTeamInfo>(g.original_team_info);
 
-        BEGIN_READ(pbuf, iSize);
+        BEGIN_READ(buffer, size);
 
-        int iIndex = READ_BYTE();
-        char *szTeam = READ_STRING();
+        uint8_t index = READ_BYTE();
+        char *team_str = READ_STRING();
 
-        auto lp = g.engine_funcs->GetLocalPlayer();
+        auto local = g.engine_funcs->GetLocalPlayer();
 
-        if (iIndex >= 0 && iIndex < g.engine_funcs->GetMaxClients())
+        if (index >= 0 && index < g.engine_funcs->GetMaxClients())
         {
             custom::player_team team;
-            if (std::strcmp(szTeam, "CT") == 0)
+            if (std::strcmp(team_str, "CT") == 0)
             {
                 // Player is a ct
                 team = custom::player_team::CT;
             }
-            else if (std::strcmp(szTeam, "TERRORIST") == 0)
+            else if (std::strcmp(team_str, "TERRORIST") == 0)
             {
                 // Player is a t
                 team = custom::player_team::T;
@@ -493,17 +559,17 @@ namespace hooks
                 team = custom::player_team::UNKNOWN;
             }
 
-            if (iIndex == lp->index)
+            if (index == local->index)
             {
                 g.local_player_data.team = team;
             }
             else
             {
-                g.player_data[iIndex].team = team;
+                g.player_data[index].team = team;
             }
         }
 
-        return original_func(pszName, iSize, pbuf);
+        return original_func(name, size, buffer);
     }
 
     void hk_post_run_cmd( struct local_state_s *from, struct local_state_s *to, struct usercmd_s *cmd, int runfuncs, double time, unsigned int random_seed )
@@ -523,13 +589,13 @@ namespace hooks
     }
 
     // For now useless
-    int hk_cur_weapon(const char *pszName, int iSize, void *pbuf )
+    int hk_cur_weapon(const char *name, int size, void *buffer )
     {
-        typedef int(*fnCurWeapon)(const char *pszName, int iSize, void *pbuf );
+        typedef int(*fnCurWeapon)(const char *, int, void *);
         static auto& g = globals::instance();
         static auto original_func = reinterpret_cast<fnCurWeapon>(g.original_cur_weapon);
 
-        return original_func(pszName, iSize, pbuf);
+        return original_func(name, size, buffer);
     }
 
     typedef void(*fnCalcRefDef)(ref_params_t*);
@@ -550,6 +616,33 @@ namespace hooks
         }
 
         original_func(params);
+    }
+
+    
+    int hk_score_attrib(const char* name, int size, void* buffer)
+    {
+        typedef int(*fnScoreAttrib)(const char*, int, void*);
+        static auto& g = globals::instance();
+        static auto original_func = reinterpret_cast<fnScoreAttrib>(g.original_score_attrib);
+
+        BEGIN_READ(buffer, size);
+
+        uint8_t index = READ_BYTE();
+        uint8_t status = READ_BYTE();
+
+        if ((index >= 0) && (index < g.engine_funcs->GetMaxClients()) && (index != g.engine_funcs->GetLocalPlayer()->index))
+        {
+            if (g.player_data[index].alive && (status & 1))
+                g.engine_funcs->Con_Printf("Player %i just died!\n");
+            
+            g.player_data[index].alive = !(status & 1);
+        }
+        else if (index != g.engine_funcs->GetLocalPlayer()->index)
+        {
+            g.local_player_data.alive = !(status & 1);
+        }
+
+        return original_func(name, size, buffer);
     }
 
 	void init()
@@ -591,6 +684,9 @@ namespace hooks
 
         g.original_studio_entity_light = reinterpret_cast<uintptr_t>(g.engine_studio->StudioEntityLight);
         g.engine_studio->StudioEntityLight = hk_studio_entity_light;
+
+        g.original_studio_check_bbox = reinterpret_cast<uintptr_t>(g.engine_studio->StudioCheckBBox);
+        g.engine_studio->StudioCheckBBox = hk_studio_check_bbox;
         //g.original_hook_usr_msg = reinterpret_cast<uintptr_t>(g.engine_funcs->pfnHookUserMsg);
         //g.engine_funcs->pfnHookUserMsg = reinterpret_cast<pfnEngSrc_pfnHookUserMsg_t>(hkHookUserMsg);
 
@@ -610,6 +706,12 @@ namespace hooks
                // We found the right one
                g.original_team_info = (uintptr_t)element->pfn;
                element->pfn = hk_team_info;
+            }
+
+            if (std::strcmp(element->szMsg, "ScoreAttrib") == 0)
+            {
+                g.original_score_attrib = (uintptr_t)element->pfn;
+                element->pfn = hk_score_attrib;
             }
             // Go to the next one
             element = element->pNext;

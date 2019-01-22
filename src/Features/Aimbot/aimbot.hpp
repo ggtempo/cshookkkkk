@@ -18,6 +18,7 @@ namespace features
             {
                 this->enabled = false;
                 this->team = false;
+                this->silent = false;
 
                 this->delay = 0;
                 this->next_fire = -1;
@@ -43,11 +44,15 @@ namespace features
         private:
             bool enabled;
             bool team;
-            bool all_hitboxes;
+            bool silent;
+
             int64_t delay;
             int64_t next_fire;
+
             bool on_key;
             int key;
+
+            bool all_hitboxes;
             std::unordered_map<int, bool> target_hitboxes;
     };
 }
