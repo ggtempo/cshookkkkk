@@ -8,6 +8,7 @@ namespace features
     void triggerbot::create_move(float frametime, usercmd_t *cmd, int active)
     {
         static auto& g = globals::instance();
+        auto local = g.engine_funcs->GetLocalPlayer();
 
         if (this->enabled && (!this->on_key || GetAsyncKeyState(this->key)))
         {
@@ -21,8 +22,44 @@ namespace features
             end = start.multiply_add(2148, forward);
 
 
+            for (auto i = 0; i < g.engine_funcs->GetMaxClients(); i++)
+            {
+                auto entity = g.engine_funcs->GetEntityByIndex(i);
+
+                if (!entity || entity == local || entity->index == local->index)
+                    continue;
+
+                if ((g.player_data[entity->index].team == g.local_player_data.team) && !this->team)
+                    continue;
+
+                for (auto& [key, hitbox] : g.player_data[entity->index].hitboxes)
+                {
+                    if (hitbox.visible && (this->target_hitboxes[key] || this->all_hitboxes) && key != hitbox_numbers::unknown)
+                    {
+                        if (auto result = math::ray_hits_rbbox(start, forward, hitbox.box, hitbox.matrix); result.hit)
+                        {
+                            auto now = std::chrono::high_resolution_clock().now().time_since_epoch();
+                            auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now).count();
+
+
+                            if (((this->next_fire != -1) && (this->next_fire <= ms)) || (this->delay == 0))
+                            {
+                                cmd->buttons |= IN_ATTACK;
+                                this->next_fire = -1;
+                                g.engine_funcs->Con_Printf("[Triggerbot] fire!\n");
+                            }
+                            else if (this->next_fire == -1)
+                            {
+                                this->next_fire = ms + this->delay;
+                                g.engine_funcs->Con_Printf("[Triggerbot] next_fire %i, current msec %i\n", this->next_fire, ms);
+                            }
+                        }
+                    }
+                }
+            }
+
             //auto trace = *g.engine_funcs->PM_TraceLine(start, end, PM_TRACELINE_PHYSENTSONLY, 0, lp->index);
-            pmtrace_t trace = {};
+            /*pmtrace_t trace = {};
 
             g.engine_funcs->pEventAPI->EV_SetTraceHull(2);
             g.engine_funcs->pEventAPI->EV_PlayerTrace(start, end, PM_GLASS_IGNORE, -1, &trace);
@@ -78,7 +115,7 @@ namespace features
                         }
                     }
                 }
-            }
+            }*/
         }
     }
 
@@ -86,7 +123,8 @@ namespace features
     {
         static auto complex_hitboxes = false;
 
-        ImGui::Begin("Triggerbot");
+        if (ImGui::Begin("Triggerbot"))
+        {
             ImGui::Checkbox("Triggerbot enabled", &this->enabled);
             ImGui::Checkbox("Shoot team", &this->team);
             ImGui::DragInt("Delay", (int32_t*)&this->delay, 1.0, 0, 1000, "%f ms");
@@ -158,9 +196,7 @@ namespace features
             {
                 this->all_hitboxes = true;
             }
-            
-
-            //ImGui::InputInt("Trigger bone debug", &g.trigger_bone);
-        ImGui::End();
+            ImGui::End();
+        }
     }
 }

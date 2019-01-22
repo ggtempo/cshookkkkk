@@ -27,11 +27,6 @@ namespace features
             glDisable(GL_TEXTURE_2D);
             g.engine_studio->SetForceFaceFlags( g.s_nf );
             g.engine_funcs->pTriAPI->RenderMode( g.render_mode );
-            /*entity->curstate.renderfx = g.render_fx;
-            entity->curstate.renderamt = g.fx_amt;
-            entity->curstate.rendercolor.r = g.clr.x;
-            entity->curstate.rendercolor.g = g.clr.y;
-            entity->curstate.rendercolor.b = g.clr.z;*/
 
             if (g.local_player_data.team != g.player_data[entity->index].team)
             {
@@ -51,7 +46,6 @@ namespace features
             glDisable(GL_BLEND);
             glDisable(GL_DEPTH_TEST);
 
-            glPointSize(2.f);
 
             glEnable(GL_DEPTH_TEST);
             glEnable(GL_TEXTURE_2D);

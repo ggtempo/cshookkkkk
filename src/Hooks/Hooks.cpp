@@ -14,11 +14,20 @@
 #include "../Features/AntiAim/antiaim.hpp"
 #include "../Features/Triggerbot/triggerbot.hpp"
 #include "../Features/Visuals/visuals.hpp"
+#include "../Features/Aimbot/aimbot.hpp"
 
 #include <iostream>
 
 namespace hooks
 {
+    inline bool is_valid_player(cl_entity_s* entity)
+    {
+        static auto& g = globals::instance();
+        auto local = g.engine_funcs->GetLocalPlayer();
+        return  (entity) && (entity != local) && (entity->index != local->index) &&
+                (g.player_data[entity->index].team == custom::player_team::CT || g.player_data[entity->index].team == custom::player_team::T);
+    }
+
     typedef LRESULT(__stdcall*WNDPRC)(HWND, UINT, WPARAM, LPARAM);
     LRESULT CALLBACK hk_wnd_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     {
@@ -201,12 +210,10 @@ namespace hooks
 
             ImGui::EndMainMenuBar();
         }
-        
 
         if (g.aimbot_menu_enabled && g.menu_enabled)
         {
-            ImGui::Begin("Aimbot");
-            ImGui::End();
+            features::aimbot::instance().show_menu();
         }
 
         if (g.trigger_menu_enabled && g.menu_enabled)
@@ -264,24 +271,7 @@ namespace hooks
 
         if ( entity->curstate.renderfx == render_effects::kRenderFxGlowShell )
         {
-            entity->curstate.renderfx = kRenderFxNone;
-            ecx->StudioRenderFinal( );
-            
-            if ( !g.engine_studio->IsHardware() )
-            {
-                g.engine_funcs->pTriAPI->RenderMode( kRenderTransAdd );
-            }
-
-            g.engine_studio->SetForceFaceFlags( STUDIO_NF_CHROME );
-
-            g.engine_funcs->pTriAPI->SpriteTexture( g.engine_studio->GetChromeSprite(), 0 );
-            entity->curstate.renderfx = kRenderFxGlowShell;
-
-            ecx->StudioRenderFinal( );
-            if ( !g.engine_studio->IsHardware() )
-            {
-                g.engine_funcs->pTriAPI->RenderMode( kRenderNormal );
-            }
+            original_func(ecx);
         }
         else
         {
@@ -321,7 +311,7 @@ namespace hooks
                     auto bone = studio_box[i].bone;
                     auto transform = math::matrix3x4((*p_transform)[bone]);
                     auto box = math::bbox{studio_box[i].bbmin, studio_box[i].bbmax};
-                    g.player_data[entity->index].hitboxes[i] = {bone, box, transform};
+                    g.player_data[entity->index].hitboxes[i] = {bone, false, box, transform};
 
                     //Vector vMin, vMax;
                     //VectorTransform( m_pStudioTransform[11].bbmin, (*m_pBoneTransform)[m_pStudioTransform[11].bone], vMin );
@@ -329,6 +319,42 @@ namespace hooks
                     //g_Player[ pEnt->index ].vHitbox=(vMin+vMax)*0.5f;
 
                     //g_Player[ pEnt->index ].bHitbox=true;
+                }
+            }
+        }
+    }
+
+    void update_visibility()
+    {
+        static auto& g = globals::instance();
+        auto local = g.engine_funcs->GetLocalPlayer();
+
+        for (auto i = 0; i < g.engine_funcs->GetMaxClients(); i++)
+        {
+            auto entity = g.engine_funcs->GetEntityByIndex(i);
+
+            if (!is_valid_player(entity))
+                continue;
+
+            for (auto& [key, hitbox] : g.player_data[entity->index].hitboxes)
+            {
+                math::vec3 start = g.player_move->origin + g.player_move->view_ofs;
+
+                math::vec3 max_transformed = hitbox.matrix.transform_vec3(hitbox.box.bbmax);
+                math::vec3 min_transformed = hitbox.matrix.transform_vec3(hitbox.box.bbmin);
+                math::vec3 center = (max_transformed + min_transformed) * 0.5;
+
+
+                //auto trace = *g.engine_funcs->PM_TraceLine(start, end, PM_TRACELINE_PHYSENTSONLY, 0, lp->index);
+                pmtrace_t trace = {};
+
+                g.engine_funcs->pEventAPI->EV_SetTraceHull(2);
+                g.engine_funcs->pEventAPI->EV_PlayerTrace(start, center, PM_GLASS_IGNORE, -1, &trace);
+                auto trace_entity = g.engine_funcs->pEventAPI->EV_IndexFromTrace(&trace);
+
+                if (trace_entity == i)
+                {
+                    hitbox.visible = true;
                 }
             }
         }
@@ -355,11 +381,17 @@ namespace hooks
         if (!lp || !lp->player || !active)
             return;
 
+        auto original_angles = cmd->viewangles;
+        //auto original_move = vec3_s{cmd->forwardmove, cmd->sidemove, cmd->}
+
+        update_visibility();
+
 		if (cmd->buttons & IN_JUMP && !(g.player_move->flags & FL_ONGROUND) && g.bhop_enabled)
 		{
 			cmd->buttons &= ~IN_JUMP;
 		}
         
+        features::aimbot::instance().create_move(frametime, cmd, active);
         features::triggerbot::instance().create_move(frametime, cmd, active);
         features::anti_aim::instance().create_move(frametime, cmd, active);
 
@@ -371,6 +403,19 @@ namespace hooks
             cmd->viewangles -= g.punch_angles * 2;
             cmd->viewangles.z = 0.0f;
         }
+
+        auto move = vec3_t{cmd->forwardmove, cmd->sidemove, cmd->upmove};
+        auto new_move = math::correct_movement(original_angles, cmd->viewangles, move);
+            
+        // Reset movement bits
+        cmd->buttons &= ~IN_FORWARD;
+        cmd->buttons &= ~IN_BACK;
+        cmd->buttons &= ~IN_LEFT;
+        cmd->buttons &= ~IN_RIGHT;
+
+        cmd->forwardmove = new_move.x;
+        cmd->sidemove = new_move.y;
+        cmd->upmove = new_move.z;
 	}
 
 	void HUD_ClientMove(playermove_t* ppmove, int server)

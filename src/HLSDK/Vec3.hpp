@@ -33,7 +33,7 @@ typedef struct vec3_s
         }
 
 		// Method to normalize a vector
-		void normalize()
+		vec3_s& normalize()
 		{
 			// Calculate the magnitude of our vector
 			float magnitude = sqrt((x * x) + (y * y) + (z * z));
@@ -46,6 +46,8 @@ typedef struct vec3_s
 				y /= magnitude;
 				z /= magnitude;
 			}
+
+            return *this;
 		}
         
 		static float dot_product(const vec3_s &vec1, const vec3_s &vec2)
@@ -169,9 +171,9 @@ typedef struct vec3_s
             {
                 yaw = 0;
                 if (this->z > 0)
-                    pitch = 90;
+                    pitch = 270.0f;//90;
                 else
-                    pitch = 270;
+                    pitch = 90.0;//270;
             }
             else
             {
@@ -201,5 +203,24 @@ typedef struct vec3_s
             result.z = this->z + (scale * other.z);
 
             return result;
+        }
+
+        vec3_s& normalize_angle()
+        {
+            this->z = 0.0;
+
+            while (this->y > 180.0f)
+                this->y -= 360.0f;
+
+            while (this->y < -180.0f)
+                this->y += 360.0f;
+
+            while (this->x > 89.0f)
+                this->x -= 180.0f;
+
+            while (this->x < -89.0f)
+                this->x += 180.0f;
+
+            return *this;
         }
 } vec3_t;

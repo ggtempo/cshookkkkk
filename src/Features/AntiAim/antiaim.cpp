@@ -62,18 +62,6 @@ namespace features
             
             cmd->viewangles = new_view;
 
-            auto new_move = math::correct_movement(view, new_view, move);
-            
-            // Reset movement bits
-            cmd->buttons &= ~IN_FORWARD;
-            cmd->buttons &= ~IN_BACK;
-            cmd->buttons &= ~IN_LEFT;
-            cmd->buttons &= ~IN_RIGHT;
-
-            cmd->forwardmove = new_move.x;
-            cmd->sidemove = new_move.y;
-            cmd->upmove = new_move.z;
-
             cmd->viewangles.z = 0;
         }
     }

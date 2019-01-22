@@ -8,6 +8,7 @@ namespace custom
     struct angled_bbox
     {
         int bone;
+        bool visible;
         math::bbox box;
         math::matrix3x4 matrix;
     };
