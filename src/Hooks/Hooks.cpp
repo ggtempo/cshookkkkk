@@ -238,6 +238,7 @@ namespace hooks
                 ImGui::Checkbox("Bhop enabled", &g.bhop_enabled);
                 ImGui::Checkbox("Visual no recoil", &g.no_visual_recoil);
                 ImGui::Checkbox("No recoil", &g.no_recoil);
+                ImGui::Checkbox("No spread", &g.no_spread);
             ImGui::End();
         }
 
@@ -500,12 +501,46 @@ namespace hooks
 
         //g.engine_funcs->Con_Printf("Player with weapon id %i can fire in: %f, %f\n", g.local_player_data.weapon.id, g.local_player_data.weapon.next_attack, g.local_player_data.weapon.next_primary_attack);
 
-        if (g.no_recoil && (cmd->buttons & IN_ATTACK))
+        if (g.no_recoil && (cmd->buttons & IN_ATTACK) && custom::is_gun(g.local_player_data.weapon.id))
         {
             cmd->viewangles -= g.punch_angles * 2;
             cmd->viewangles.z = 0.0f;
 
             cmd->viewangles.normalize_angle();
+        }
+
+        if (g.no_spread && (cmd->buttons & IN_ATTACK) && custom::is_gun(g.local_player_data.weapon.id))
+        {
+            // Get necessary info
+            auto info = get_weapon_info(g.local_player_data.weapon.id);
+            float velocity = math::vec3(g.local_player_data.velocity.x, g.local_player_data.velocity.y, 0.0f).length();
+            auto spread = custom::get_spread(g.local_player_data.weapon.id, info->m_flAccuracy, velocity,
+                            g.player_move->flags & FL_ONGROUND, g.player_move->flags & FL_DUCKING,
+                            0.0f, info->m_iWeaponState);
+            unsigned int shared_rand = g.local_player_data.weapon.seed;
+
+            math::vec3 view_angles = cmd->viewangles.normalize_angle();
+
+            auto spread_vec = custom::get_spread_vec(shared_rand, spread);
+
+            math::vec3 forward, right, up, direction;
+            math::vec3 temp = {0.0, 0.0, 0.0};
+            temp.to_vectors(forward, right, up);
+
+            direction = (forward + (right * spread_vec.x) + (up * spread_vec.y)).normalize();
+            auto angles = direction.to_angles();
+            angles.x -= view_angles.x;
+
+            angles.normalize_angle();
+            angles.transpose(forward, right, up);
+            direction = forward;
+
+            angles = direction.to_angles(up);
+            angles.normalize_angle();
+            angles.y += view_angles.y;
+            angles.normalize_angle();
+
+            cmd->viewangles = angles;
         }
 
         auto move = vec3_t{cmd->forwardmove, cmd->sidemove, cmd->upmove};
@@ -587,34 +622,24 @@ namespace hooks
         if (!runfuncs)
             return;
 
+        // Update local player
+        g.local_player_data.velocity = to->playerstate.velocity;
+
         // Update local weapon
+        auto info = get_weapon_info(to->client.m_iId);
+
         g.local_player_data.weapon.id = static_cast<custom::weapon_id>(to->client.m_iId);
         g.local_player_data.weapon.clip = to->weapondata[to->client.m_iId].m_iClip;
         g.local_player_data.weapon.next_primary_attack = to->weapondata[to->client.m_iId].m_flNextPrimaryAttack;
         g.local_player_data.weapon.next_secondary_attack = to->weapondata[to->client.m_iId].m_flNextSecondaryAttack;
         g.local_player_data.weapon.in_reload = to->weapondata[to->client.m_iId].m_fInReload || !to->weapondata[to->client.m_iId].m_iClip;
         g.local_player_data.weapon.next_attack = to->client.m_flNextAttack;
-        
 
-        //g.engine_funcs->Con_Printf("Current weapon: %i\n", to->client.m_iId);
-        
-        auto info = get_weapon_info(to->client.m_iId);
-        auto info2 = (weapon_t*)info;
         if (info)
         {
-            g.engine_funcs->Con_Printf("ID: %i, spread: %f, ammo: %i(%i)\n", info->m_iId, info->m_flAccuracy, info->m_iClip, info->m_iDefaultAmmo);
-            g.engine_funcs->Con_Printf("ID: %i, spread: %f, ammo: %i(%i)\n", info2->WeaponID, info2->SpreadVar, info2->Ammo, info2->MaxAmmo);
+            g.local_player_data.weapon.seed = random_seed;
+            g.local_player_data.weapon.accuracy = info->m_flAccuracy;
         }
-            //g.engine_funcs->Con_Printf("Weapon accuracy is %f, shots fired: %i, id: %i (%i)\n", 0.0, 0, info2->WeaponID, to->client.m_iId);
-
-        //auto tm = g.game_globals->time;
-        //g.game_globals->time -= 0.2;
-        
-        
-
-        //g.engine_funcs->Con_Printf("Global time start: %f, post: %f\n", tm, g.game_globals->time);
-
-        return;
     }
 
     // For now useless

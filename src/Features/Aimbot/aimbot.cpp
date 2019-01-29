@@ -9,7 +9,7 @@ namespace features
     {
         static auto& g = globals::instance();
 
-        if (this->enabled && (!this->on_key || GetAsyncKeyState(this->key)))
+        if (this->enabled && (!this->on_key || GetAsyncKeyState(this->key)) && custom::is_gun(g.local_player_data.weapon.id))
         {
             vec3_t start = g.player_move->origin + g.player_move->view_ofs;
             vec3_t angles = cmd->viewangles;

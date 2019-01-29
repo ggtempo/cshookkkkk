@@ -87,6 +87,418 @@ namespace custom
                 (id <= weapon_p90);
     }
 
+    inline float get_spread(weapon_id id, float accuracy, float velocity, bool grounded, bool ducking, float fov, int state)
+    {
+        switch (id)
+        {
+            case weapon_ak47:
+            {
+                if (grounded)
+                {
+                    if (velocity > 140)
+                        return 0.04 + (0.07) * accuracy;    // Running on ground
+                    else
+                        return 0.0275 * accuracy;           // Crouching / Walking slow
+                }
+                else
+                {
+                    return 0.04 + (0.4) * accuracy;         // In air
+                }
+            }
+
+            case weapon_aug:
+            {
+                if (grounded)
+                {
+                    if (velocity > 140)
+                        return 0.035 + (0.07) * accuracy;
+                    //else if (fov == 90)
+                    //    return (0.02) * accuracy;
+                    else
+                        return (0.02) * accuracy;
+                }
+                else
+                {
+                    return 0.035 + (0.4) * accuracy;
+                }
+                
+            }
+
+            case weapon_awp:
+            {
+                if (grounded)
+                {
+                    if (velocity > 140)
+                        return 0.25;
+                    else if (velocity > 10)
+                        return 0.1;
+                    else if (ducking)
+                        return 0.0;
+                    else
+                        return 0.001;
+                }
+                else
+                {
+                    return 0.85;
+                }
+            }
+
+            case weapon_deagle:
+            {
+                if (grounded)
+                {
+                    if (velocity > 0)
+                        return (0.25) * (1 - accuracy);
+                    else if (ducking)
+                        return (0.115) * (1 - accuracy);
+                    else
+                        return (0.13) * (1 - accuracy);
+                }
+                else
+                {
+                    return (1.5) * (1 - accuracy);
+                }
+            }
+
+            case weapon_elite:
+            {
+                if (grounded)
+                {
+                    if (velocity > 0)
+                        return (0.175) * (1 - accuracy);
+                    else if (ducking)
+                        return (0.08) * (1 - accuracy);
+                    else
+                        return (0.1) * (1 - accuracy);
+                }
+                else
+                {
+                    return (1.3) * (1 - accuracy);
+                }
+            }
+
+            case weapon_famas:
+            {
+                if (grounded)
+                {
+                    if (velocity > 140)
+                        return 0.030 + (0.07) * accuracy;
+                    else
+                        return (0.02) * accuracy;
+                }
+                else
+                {
+                    return 0.030 + (0.3) * accuracy;
+                }
+                
+            }
+
+            case weapon_fiveseven:
+            {
+                if (grounded)
+                {
+                    if (velocity > 0)
+                        return (0.255) * (1 - accuracy);
+                    else if (ducking)
+                        return (0.075) * (1 - accuracy);
+                    else
+                        return (0.15) * (1 - accuracy);
+                }
+                else 
+                {
+                    return (1.5) * (1 - accuracy);
+                }
+            }
+
+            case weapon_g3sg1:
+            {
+                if (grounded)
+                {
+                    if (velocity > 0)
+                        return 0.15;
+                    else if (ducking)
+                        return 0.035;
+                    else
+                        return 0.055;
+                }
+                else
+                {
+                    return 0.45;
+                }
+                
+            }
+
+            case weapon_galil:
+            {
+                if (grounded)
+                {
+                    if (velocity > 140)
+                        return 0.04 + (0.07) * accuracy;
+                    else
+                        return (0.0375) * accuracy;
+                }
+                else
+                {
+                    return 0.04 + (0.3) * accuracy;
+                }
+                
+            }
+
+            case weapon_glock18:
+            {
+                if (grounded)
+                {
+                    if (velocity > 0)
+                        return (0.185) * (1 - accuracy);
+                    else if (ducking)
+                        return (0.095) * (1 - accuracy);
+                    else
+                        return (0.3) * (1 - accuracy);
+                }
+                else
+                {
+                    return (1.2) * (1 - accuracy);
+                }
+                
+            }
+
+            case weapon_m249:
+            {
+                if (grounded)
+                {
+                    if (velocity > 140)
+                        return 0.045 + (0.095) * accuracy;
+                    else
+                        return (0.03) * accuracy;
+                    
+                }
+                else
+                {
+                    return 0.045 + (0.5) * accuracy;
+                }
+                
+            }
+
+            // Shotgun
+            case weapon_m3:
+                return 0.0;
+
+            // Todo
+            case weapon_m4a1:
+            {
+                if (state & WPNSTATE_M4A1_SILENCED)
+                {
+                    if (grounded)
+                    {
+                        if (velocity > 140)
+                            return 0.035 + (0.07) * accuracy;
+                        else
+                            return (0.025) * accuracy;
+                    }
+                    else
+                    {
+                        return 0.035 + (0.4) * accuracy;
+                    }
+                }
+                else
+                {
+                    if (grounded)
+                    {
+                        if (velocity > 140)
+                            return 0.035 + (0.07) * accuracy;
+                        else
+                            return (0.02) * accuracy;
+                    }
+                    else
+                    {
+                        return 0.035 + (0.4) * accuracy;
+                    }
+                }
+            }
+
+            case weapon_mac10:
+            {
+                if (grounded)
+                    return (0.03) * accuracy;
+                else
+                    return (0.375) * accuracy;
+            }
+
+            case weapon_mp5navy:
+            {
+                if (grounded)
+                    return (0.04) * accuracy;
+                else
+                    return (0.2) * accuracy;
+            }
+
+            case weapon_p228:
+            {
+                if (grounded)
+                {
+                    if (velocity > 0)
+                        return (0.255) * (1 - accuracy);
+                    else if (ducking)
+                        return (0.075) * (1 - accuracy);
+                    else
+                        return (0.15) * (1 - accuracy);
+                }
+                else
+                {
+                    return (1.5) * (1 - accuracy);
+                }
+                
+            }
+
+            case weapon_p90:
+            {
+                if (grounded)
+                {
+                    if (velocity > 170)
+                        return (0.115) * accuracy;
+                    else
+                        return (0.045) * accuracy;
+                }
+                else
+                {
+                    return (0.3) * accuracy;
+                }
+                
+            }
+
+            case weapon_scout:
+            {
+                if (grounded)
+                {
+                    if (velocity > 170)
+                        return 0.075;
+                    else if (ducking)
+                        return 0.0;
+                    else
+                        return 0.007;
+                }
+                else
+                {
+                    return 0.2;
+                }
+            }
+
+            //
+
+            case weapon_sg550:
+            {
+                if (grounded)
+                {
+                    if (velocity > 0)
+                        return 0.15;
+                    else if (ducking)
+                        return (0.04) * (1 - accuracy);
+                    else
+                        return (0.05) * (1 - accuracy);
+                }
+                else
+                {
+                    return (0.45) * (1 - accuracy);
+                }
+            }
+
+            case weapon_sg552:
+            {
+                if (grounded)
+                {
+                    if (velocity > 140)
+                        return 0.035 + (0.075) * accuracy;
+                    //else if (fov == 90)
+                    //    return (0.02) * accuracy;
+                    else
+                        return (0.02) * accuracy;
+                }
+                else
+                {
+                    return 0.035 + (0.45) * accuracy;
+                }
+            }
+
+            case weapon_tmp:
+            {
+                if (grounded)
+                {
+                    return 0.03 * accuracy;
+                }
+                else
+                {
+                    return 0.25 * accuracy;
+                }
+            }
+
+            case weapon_ump45:
+            {
+                if (grounded)
+                {
+                    return 0.04 * accuracy;
+                }
+                else
+                {
+                    return 0.24 * accuracy;
+                }
+            }
+
+            // Todo
+            case weapon_usp:
+            {
+                if (state & WPNSTATE_USP_SILENCED)
+                {
+                    if (grounded)
+                    {
+                        if (velocity > 0)
+                            return (0.25) * (1 - accuracy);
+                        else if (ducking)
+                            return (0.125) * (1 - accuracy);
+                        else
+                            return (0.15) * (1 - accuracy);
+                    }
+                    else
+                    {
+                        return (1.3) * (1 - accuracy);
+                    }
+                }
+                else
+                {
+                    if (grounded)
+                    {
+                        if (velocity > 0)
+                            return (0.225) * (1 - accuracy);
+                        else if (ducking)
+                            return (0.08) * (1 - accuracy);
+                        else
+                            return (0.1) * (1 - accuracy);
+                    }
+                    else
+                    {
+                        return (1.2) * (1 - accuracy);
+                    }
+                }
+            }
+
+            // Shotgun
+            case weapon_xm1014:
+                return 0.0;
+
+            default:
+                // If we don't know the weapon's spread, just return the 0
+                return 0.0;
+        }
+    }
+
+    inline math::vec3 get_spread_vec(unsigned int random_seed, float spread)
+    {
+        constexpr unsigned int future = 1;
+        float spread_x = (math::shared_random_float(random_seed + future, -0.5, 0.5)     + math::shared_random_float(random_seed + future + 1, -0.5, 0.5)) * spread;
+		float spread_y = (math::shared_random_float(random_seed + future + 2, -0.5, 0.5) + math::shared_random_float(random_seed + future + 3, -0.5, 0.5)) * spread;
+
+        return {spread_x, spread_y, 0.0};
+    }
+
     union color4f
     {
         struct
@@ -111,6 +523,7 @@ namespace custom
         int ammo;
 
         unsigned int seed;
+        float accuracy;
     };
 
     struct player_data
@@ -119,6 +532,9 @@ namespace custom
         bool dormant = true;
         player_team team = player_team::UNKNOWN;
         weapon_data weapon;
+
+        math::vec3 velocity;
+
         std::unordered_map<int, angled_bbox> hitboxes;
     };
 

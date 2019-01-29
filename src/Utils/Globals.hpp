@@ -27,6 +27,8 @@ class globals
             this->no_visual_recoil = false;
             this->no_recoil = false;
             this->bhop_enabled = false;
+
+            this->no_spread = false;
             
             
             this->render_mode = render_modes::kRenderNormal;
@@ -67,6 +69,8 @@ class globals
         bool bhop_enabled;
         bool no_visual_recoil;
         bool no_recoil;
+
+        bool no_spread;
 
         int render_mode;
         int render_fx;

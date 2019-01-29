@@ -194,6 +194,65 @@ typedef struct vec3_s
             return angles;
         }
 
+        vec3_s to_angles(vec3_s& up)
+        {
+            vec3_s left;
+
+            float	length, yaw, pitch, roll;
+
+            left = vec3_s::cross_product( up, *this );
+            
+            left.normalize();
+                
+            length = vec3_s{this->x, this->y, 0.0}.length();
+                  
+            if (length > 0.001)
+            {                   							
+                pitch = (std::atan2 (-z, length) * 180 / pi );
+
+                if (pitch < 0)
+                {
+                    pitch += 360;
+                }
+            
+                yaw = (std::atan2 (y, x) * 180 / pi);
+
+                if (yaw < 0)
+                {
+                    yaw += 360;
+                }
+
+                float up_z = (left[1] * x) - ( left[0] * y );
+                                                        
+                roll = (std::atan2(left[2], up_z) * 180 / pi);
+
+                if (roll < 0)
+                {
+                    roll += 360;
+                }
+            }
+            else
+            {
+                yaw = ( std::atan2 ( y, x ) * 180 / pi );
+
+                if ( yaw < 0 )
+                {
+                    yaw += 360;
+                }
+            
+                pitch = ( std::atan2 ( -z, length ) * 180 / pi);
+            
+                if ( pitch < 0 )
+                {
+                    pitch += 360;
+                }
+
+                roll = 0;
+            }
+
+            return {pitch, yaw, roll};
+        }
+
         vec3_s to_vector() const
         {
             const float pi = std::acos(-1.0);
@@ -211,6 +270,35 @@ typedef struct vec3_s
             result.z = -sp;
 
             return result;
+        }
+
+        void to_vectors(vec3_s& forward, vec3_s& right, vec3_s& up)
+        {
+            float sp, sy, sr, cp, cy, cr, radx, rady, radz;
+
+            radx = x * ( pi*2 / 360 );
+            rady = y * ( pi*2 / 360 );
+            radz = z * ( pi*2 / 360 );
+
+            sp = std::sin ( radx ); 
+            sy = std::sin ( rady ); 
+            sr = std::sin ( radz ); 
+
+            cp = std::cos ( radx );
+            cy = std::cos ( rady );
+            cr = std::cos ( radz );
+
+            forward.x = cp * cy;
+            forward.y = cp * sy;
+            forward.z = -sp;
+
+            right.x = -1 * sr * sp * cy + -1 * cr * -sy;
+            right.y = -1 * sr * sp * sy + -1 * cr * cy;
+            right.z = -1 * sr * cp;
+
+            up.x = cr * sp * cy + -sr * -sy;
+            up.y = cr * sp * sy + -sr * cy;
+            up.z = cr * cp;
         }
 
         vec3_s multiply_add(float scale, const vec3_s& other) const
@@ -248,5 +336,34 @@ typedef struct vec3_s
             return  this->x == 0.0 &&
                     this->y == 0.0 &&
                     this->z == 0.0;
+        }
+
+        void transpose(vec3_s& forward, vec3_s& right, vec3_s& up)
+        {
+            float sp, sy, sr, cp, cy, cr, radx, rady, radz;
+
+            radx = x * ( pi*2 / 360 );
+            rady = y * ( pi*2 / 360 );
+            radz = z * ( pi*2 / 360 );
+                
+            sp = sin ( radx ); 
+            sy = sin ( rady ); 
+            sr = sin ( radz ); 
+
+            cp = cos ( radx );
+            cy = cos ( rady );
+            cr = cos ( radz );
+
+            forward.x = cp * cy;
+            forward.y = sr * sp * cy + cr * -sy;
+            forward.z = cr * sp * cy + -sr * -sy;
+
+            right.x = cp * sy;
+            right.y = sr * sp * sy + cr * cy;
+            right.z = cr * sp * sy + -sr * cy;
+
+            up.x = -sp;
+            up.y = sr * cp;
+            up.z = cr * cp;
         }
 } vec3_t;
