@@ -11,4 +11,7 @@ target_sources(
         "${CMAKE_CURRENT_LIST_DIR}/Studio.hpp"
         "${CMAKE_CURRENT_LIST_DIR}/StudioStructures.hpp"
         "${CMAKE_CURRENT_LIST_DIR}/Parsemsg.hpp"
+        "${CMAKE_CURRENT_LIST_DIR}/Globals.hpp"
+        "${CMAKE_CURRENT_LIST_DIR}/Weapons.hpp"
+        "${CMAKE_CURRENT_LIST_DIR}/Net.hpp"
 )

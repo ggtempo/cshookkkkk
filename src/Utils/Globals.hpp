@@ -5,6 +5,8 @@
 #include "../HLSDK/playermove.hpp"
 #include "../HLSDK/Studio.hpp"
 #include "../HLSDK/StudioStructures.hpp"
+#include "../HLSDK/Globals.hpp"
+#include "../HLSDK/Weapons.hpp"
 #include "custom.hpp"
 
 #include <unordered_set>
@@ -39,6 +41,8 @@ class globals
 
             this->catch_keys = false;
             this->captured_key = -1;
+
+            this->anti_aim_pitch_override = false;
         }
 
     public:
@@ -73,6 +77,8 @@ class globals
         int trace_mode = 0;
         int trace_flags = 0;
 
+        bool anti_aim_pitch_override;
+
         // Hooks
         memory::vmt_hook* studio_model_renderer_hook;
 
@@ -89,6 +95,10 @@ class globals
         uintptr_t           original_score_attrib;
         uintptr_t           original_studio_check_bbox;
 
+        globalvars_t*       game_globals;
+
+        uintptr_t           get_weapon_info;
+
         uintptr_t           original_window_proc;
         uintptr_t           original_wgl_swap_buffers;
         HWND                main_window;
@@ -103,3 +113,13 @@ class globals
         bool catch_keys;
         int captured_key;
 };
+
+inline CBasePlayerWeapon* get_weapon_info(int id)
+{
+    typedef CBasePlayerWeapon*(*fnGetWeaponInfo)(int id);
+    static auto& g = globals::instance();
+    static auto original_func = reinterpret_cast<fnGetWeaponInfo>(g.get_weapon_info);
+
+
+    return original_func(id);
+}

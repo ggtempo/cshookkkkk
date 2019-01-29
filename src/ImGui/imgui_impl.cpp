@@ -76,7 +76,11 @@ static void ImGui_Impl_UpdateMousePos()
     // Set mouse position
     io.MousePos = ImVec2(-FLT_MAX, -FLT_MAX);
     POINT pos;
-    if (::GetActiveWindow() == g_hWnd && ::GetCursorPos(&pos))
+    /*if (::GetActiveWindow() == g_hWnd && ::GetCursorPos(&pos))
+        if (::ScreenToClient(g_hWnd, &pos))
+            io.MousePos = ImVec2((float)pos.x, (float)pos.y);*/
+
+    if (::GetForegroundWindow() == g_hWnd && ::GetCursorPos(&pos))
         if (::ScreenToClient(g_hWnd, &pos))
             io.MousePos = ImVec2((float)pos.x, (float)pos.y);
 }
@@ -529,8 +533,8 @@ IMGUI_IMPL_API uintptr_t ImGui_Impl_WndProcHandler(HWND hwnd, UINT msg, WPARAM w
         if (msg == WM_LBUTTONDOWN || msg == WM_LBUTTONDBLCLK) button = 0;
         if (msg == WM_RBUTTONDOWN || msg == WM_RBUTTONDBLCLK) button = 1;
         if (msg == WM_MBUTTONDOWN || msg == WM_MBUTTONDBLCLK) button = 2;
-        if (!ImGui::IsAnyMouseDown() && ::GetCapture() == NULL)
-            ::SetCapture(hwnd);
+        /*if (!ImGui::IsAnyMouseDown() && ::GetCapture() == NULL)
+            ::SetCapture(hwnd);*/
         io.MouseDown[button] = true;
         return 0;
     }
@@ -543,8 +547,8 @@ IMGUI_IMPL_API uintptr_t ImGui_Impl_WndProcHandler(HWND hwnd, UINT msg, WPARAM w
         if (msg == WM_RBUTTONUP) button = 1;
         if (msg == WM_MBUTTONUP) button = 2;
         io.MouseDown[button] = false;
-        if (!ImGui::IsAnyMouseDown() && ::GetCapture() == hwnd)
-            ::ReleaseCapture();
+        /*if (!ImGui::IsAnyMouseDown() && ::GetCapture() == hwnd)
+            ::ReleaseCapture();*/
         return 0;
     }
     case WM_MOUSEWHEEL:

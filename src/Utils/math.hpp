@@ -159,6 +159,14 @@ namespace math
         return angle * (pi / 180);
     }
 
+    inline float get_fov(const math::vec3& angles, const math::vec3& target_angles)
+    {
+        auto delta = (target_angles - angles).normalize_angle();
+        auto fov = std::sqrt((delta.x * delta.x) + (delta.y * delta.y));
+
+        return fov;
+    }
+
     inline vec3 correct_movement(const vec3& original_angles, const vec3& new_angles, const vec3& movement)
     {
         if (original_angles == new_angles)

@@ -12,6 +12,9 @@ namespace features
             auto new_view = view;
             auto move = vec3_t{cmd->forwardmove, cmd->sidemove, cmd->upmove};
 
+            auto correct_view = true;
+
+            // Determine the correct pitch angle
             switch (this->pitch_mode)
             {
                 case aa_mode_pitch::down_emotion:
@@ -20,6 +23,7 @@ namespace features
 
                 case aa_mode_pitch::down_unsafe:
                     new_view.x = -179.0f;
+                    correct_view = false;
                     //move.x *= -1;
                     break;
 
@@ -29,10 +33,12 @@ namespace features
 
                 case aa_mode_pitch::up_unsafe:
                     new_view.x = 179.0f;
+                    correct_view = false;
                     //move.x *= -1;
                     break;
             }
 
+            // Determine the correct yaw angle
             switch (this->yaw_mode)
             {
                 case aa_mode_yaw::backwards:
@@ -53,11 +59,14 @@ namespace features
                     break;
             }
 
+            // Wrap spinbot angle to 360 degrees
             if (angle > 360)
                 angle -= 360;
 
-            
-            cmd->viewangles = new_view.normalize_angle();
+            // If we should correct the angles (eg: safe angles)
+            // Correct them
+            if (correct_view)
+                cmd->viewangles = new_view.normalize_angle();
         }
     }
 

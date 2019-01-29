@@ -15,6 +15,7 @@
 #include "../Features/Triggerbot/triggerbot.hpp"
 #include "../Features/Visuals/visuals.hpp"
 #include "../Features/Aimbot/aimbot.hpp"
+#include "../HLSDK/Weapons.hpp"
 
 #include <iostream>
 
@@ -475,6 +476,8 @@ namespace hooks
         static auto& g = globals::instance();
 		g.original_client_funcs->pCL_CreateMove(frametime, cmd, active);
 
+        //g.engine_funcs->Con_Printf("CreateMove: msec: %i, lerp: %i\n", cmd->msec, cmd->lerp_msec);
+
 		auto lp = g.engine_funcs->GetLocalPlayer();
 
         if (!lp || !lp->player || !active)
@@ -517,6 +520,8 @@ namespace hooks
         cmd->forwardmove = new_move.x;
         cmd->sidemove = new_move.y;
         cmd->upmove = new_move.z;
+
+        //g.engine_funcs->Con_Printf("Time is: %f\n", g.engine_funcs->GetClientTime());
 	}
 
 	void HUD_ClientMove(playermove_t* ppmove, int server)
@@ -577,15 +582,39 @@ namespace hooks
         static auto& g = globals::instance();
         static auto original_func = g.original_client_funcs->pPostRunCmd;
 
+        original_func(from, to, cmd, runfuncs, time, random_seed);
+
+        if (!runfuncs)
+            return;
+
         // Update local weapon
-        g.local_player_data.weapon.id = to->client.m_iId;
+        g.local_player_data.weapon.id = static_cast<custom::weapon_id>(to->client.m_iId);
         g.local_player_data.weapon.clip = to->weapondata[to->client.m_iId].m_iClip;
         g.local_player_data.weapon.next_primary_attack = to->weapondata[to->client.m_iId].m_flNextPrimaryAttack;
         g.local_player_data.weapon.next_secondary_attack = to->weapondata[to->client.m_iId].m_flNextSecondaryAttack;
         g.local_player_data.weapon.in_reload = to->weapondata[to->client.m_iId].m_fInReload || !to->weapondata[to->client.m_iId].m_iClip;
         g.local_player_data.weapon.next_attack = to->client.m_flNextAttack;
+        
 
-        return original_func(from, to, cmd, runfuncs, time, random_seed);
+        //g.engine_funcs->Con_Printf("Current weapon: %i\n", to->client.m_iId);
+        
+        auto info = get_weapon_info(to->client.m_iId);
+        auto info2 = (weapon_t*)info;
+        if (info)
+        {
+            g.engine_funcs->Con_Printf("ID: %i, spread: %f, ammo: %i(%i)\n", info->m_iId, info->m_flAccuracy, info->m_iClip, info->m_iDefaultAmmo);
+            g.engine_funcs->Con_Printf("ID: %i, spread: %f, ammo: %i(%i)\n", info2->WeaponID, info2->SpreadVar, info2->Ammo, info2->MaxAmmo);
+        }
+            //g.engine_funcs->Con_Printf("Weapon accuracy is %f, shots fired: %i, id: %i (%i)\n", 0.0, 0, info2->WeaponID, to->client.m_iId);
+
+        //auto tm = g.game_globals->time;
+        //g.game_globals->time -= 0.2;
+        
+        
+
+        //g.engine_funcs->Con_Printf("Global time start: %f, post: %f\n", tm, g.game_globals->time);
+
+        return;
     }
 
     // For now useless
@@ -632,8 +661,8 @@ namespace hooks
 
         if ((index >= 0) && (index < g.engine_funcs->GetMaxClients()) && (index != g.engine_funcs->GetLocalPlayer()->index))
         {
-            if (g.player_data[index].alive && (status & 1))
-                g.engine_funcs->Con_Printf("Player %i just died!\n");
+            /*if (g.player_data[index].alive && (status & 1))
+                g.engine_funcs->Con_Printf("Player %i just died!\n");*/
             
             g.player_data[index].alive = !(status & 1);
         }
@@ -643,6 +672,11 @@ namespace hooks
         }
 
         return original_func(name, size, buffer);
+    }
+
+    float get_current_time()
+    {
+        return 0.0;
     }
 
 	void init()
@@ -661,6 +695,14 @@ namespace hooks
 		g.client_funcs = reinterpret_cast<cldll_func_t*>(find_client_functions());
 		g.original_client_funcs = new cldll_func_t();
 		std::memcpy(g.original_client_funcs, g.client_funcs, sizeof(cldll_func_t));
+
+        uintptr_t weapons_post_think_rel = *(uintptr_t*)(g.original_client_funcs->pPostRunCmd + 0x2A);
+        uintptr_t weapons_post_think_abs = weapons_post_think_rel + ((uintptr_t)g.original_client_funcs->pPostRunCmd + 0x2E);
+
+        uintptr_t globals = *(uintptr_t*)(weapons_post_think_abs + 0xC) + weapons_post_think_abs + 0x10;
+        uintptr_t get_weapon_info = *(uintptr_t*)(weapons_post_think_abs + 0x1E) + weapons_post_think_abs + 0x22;
+        g.game_globals = (globalvars_t*)globals;
+        g.get_weapon_info = get_weapon_info;
 
         // Hook client funcs
 		g.client_funcs->pCL_CreateMove = CL_CreateMove;
@@ -690,6 +732,7 @@ namespace hooks
         //g.original_hook_usr_msg = reinterpret_cast<uintptr_t>(g.engine_funcs->pfnHookUserMsg);
         //g.engine_funcs->pfnHookUserMsg = reinterpret_cast<pfnEngSrc_pfnHookUserMsg_t>(hkHookUserMsg);
 
+        //g.engine_funcs->GetClientTime = getCurrentTime;
         
 
         auto hook_usr_msg = (uint32_t)g.engine_funcs->pfnHookUserMsg;
@@ -716,6 +759,8 @@ namespace hooks
             // Go to the next one
             element = element->pNext;
         }
+
+        g.engine_funcs->Con_Printf("Func at : 0x%X\n", hk_post_run_cmd);
 	}
 
     cl_enginefunc_t* get_engine_funcs()

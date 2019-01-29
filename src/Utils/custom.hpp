@@ -20,6 +20,73 @@ namespace custom
         UNKNOWN
     };
 
+    enum weapon_id
+    {
+        weapon_invalid = 0,
+        weapon_p228 = 1,
+        weapon_shield,
+        weapon_scout,
+        weapon_hegrenade,
+        weapon_xm1014,
+        weapon_c4,
+        weapon_mac10,
+        weapon_aug,
+        weapon_smokegrenade,
+        weapon_elite,
+        weapon_fiveseven,
+        weapon_ump45,
+        weapon_sg550,
+        weapon_galil,
+        weapon_famas,
+        weapon_usp,
+        weapon_glock18,
+        weapon_awp,
+        weapon_mp5navy,
+        weapon_m249,
+        weapon_m3,
+        weapon_m4a1,
+        weapon_tmp,
+        weapon_g3sg1,
+        weapon_flashbang,
+        weapon_deagle,
+        weapon_sg552,
+        weapon_ak47,
+        weapon_knife,
+        weapon_p90
+    };
+
+    inline bool is_knife(weapon_id id)
+    {
+        return (id == weapon_knife);
+    }
+
+    inline bool is_grenade(weapon_id id)
+    {
+        return ((id == weapon_hegrenade)    ||
+                (id == weapon_smokegrenade) ||
+                (id == weapon_flashbang));
+    }
+
+    inline bool is_c4(weapon_id id)
+    {
+        return (id == weapon_c4);
+    }
+
+    inline bool is_shield(weapon_id id)
+    {
+        return (id == weapon_shield);
+    }
+
+    inline bool is_gun(weapon_id id)
+    {
+        return  !is_knife(id) &&
+                !is_c4(id) &&
+                !is_grenade(id) && 
+                !is_shield(id) &&
+                (id != weapon_invalid) && 
+                (id <= weapon_p90);
+    }
+
     union color4f
     {
         struct
@@ -34,7 +101,7 @@ namespace custom
 
     struct weapon_data
     {
-        int id;
+        weapon_id id;
         float next_primary_attack;
         float next_secondary_attack;
         float next_attack;

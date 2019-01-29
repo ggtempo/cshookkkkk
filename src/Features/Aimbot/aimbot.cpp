@@ -14,23 +14,52 @@ namespace features
             vec3_t start = g.player_move->origin + g.player_move->view_ofs;
             vec3_t angles = cmd->viewangles;
 
+            // Get the best target
             auto best_target = this->find_best_target(start, angles);
 
+            // Check if it's a valid target
             if (best_target.target_id != -1 && best_target.target_hitbox_id != -1)
             {
-                g.engine_funcs->Con_Printf("Aiming at target: %i (hitbox %i)\n", best_target.target_id, best_target.target_hitbox_id);
-
+                // Transform hitbox position into world space
                 auto& hitbox = g.player_data[best_target.target_id].hitboxes[best_target.target_hitbox_id];
                 vec3_t transformed_bbmin = hitbox.matrix.transform_vec3(hitbox.box.bbmin);
                 vec3_t transformed_bbmax = hitbox.matrix.transform_vec3(hitbox.box.bbmax);
                 vec3_t center = (transformed_bbmin + transformed_bbmax) * 0.5;
 
-                if (g.local_player_data.weapon.next_attack <= 0.0 && g.local_player_data.weapon.next_primary_attack <= 0.0)
+
+                auto needed_angles =    (center - start)        // Get target vector
+                                        .normalize()            // Normalize to unit vector
+                                        .to_angles()            // Get the necessary angle
+                                        .normalize_angle();     // Normalize the angle
+
+                if (smooth_enabled && !this->silent)
                 {
-                    auto angle = (center - start).normalize().to_angles().normalize_angle();
-                    cmd->viewangles = angle;
+                    // If the aimbot needs to follow a smooth path
+                    // Get the angle difference
+                    auto delta = (needed_angles - angles).normalize_angle();
+
+                    // Smooth factor
+                    float smooth = std::min(0.99f, 1 - (this->smooth_speed / 1000));
+                    float coeff = (1.0f - smooth) / delta.length() * 4.0f;
+                    coeff = std::min(1.0f, coeff);
+
+                    // Needed angles = original angles + smoothing factor
+                    // Thus we don't aim directly at a player, we move the crosshair slowly
+                    needed_angles = angles + (delta * coeff);
+                }
+
+                // If we can fire or we smoothe the angles (eg: snap to target just when shooting or slowly move to the target)
+                if (((g.local_player_data.weapon.next_attack <= 0.0) && (g.local_player_data.weapon.next_primary_attack <= 0.0)) ||
+                    this->smooth_enabled)
+                {
+                    // Normalize the angle
+                    auto normalized = needed_angles.normalize_angle();
+                    // Set the cmd viewangles (angles that are sent to the server)
+                    cmd->viewangles = normalized;
+
+                    // If we don't use silent aim, set the rendered angle as well (they will be a frame late tho)
                     if (!this->silent)
-                        g.engine_funcs->SetViewAngles(angle);
+                        g.engine_funcs->SetViewAngles(normalized);
                 }
             }
         }
@@ -40,13 +69,21 @@ namespace features
     {
         static auto complex_hitboxes = false;
 
-        ImGui::Begin("Aimbot");
+        if (ImGui::Begin("Aimbot"))
+        {
             ImGui::Checkbox("Aimbot enabled", &this->enabled);
             ImGui::Checkbox("Aim team", &this->team);
             ImGui::Checkbox("Silent", &this->silent);
-            ImGui::DragInt("Delay", (int32_t*)&this->delay, 1.0, 0, 1000, "%f ms");
+
+            ImGui::Checkbox("###FOV Enabled", &this->fov_enabled);
+            ImGui::SameLine();
+            ImGui::DragFloat("FOV", &this->fov_max, 1.0, 0.0, 360.0, "%f deg");
+
+            ImGui::Checkbox("###Smooth Enabled", &this->smooth_enabled);
+            ImGui::SameLine();
+            ImGui::DragFloat("Smooth", &this->smooth_speed, 1.0, 0.0, 360.0);
+
             ImGui::Checkbox("###Aim on key", &this->on_key);
-            
             ImGui::SameLine();
             ImGui::Hotkey("Aim key", this->key);
             
@@ -114,6 +151,7 @@ namespace features
             {
                 this->all_hitboxes = true;
             }
+        }
         ImGui::End();
     }
 
@@ -122,7 +160,7 @@ namespace features
         static auto& g = globals::instance();
         auto local = g.engine_funcs->GetLocalPlayer();
         aim_target best_target = {-1, -1};
-        float best_fov = 9999.0f;
+        float best_metric = 99999999.0f;
 
         // For every player
         for (auto i = 0; i < g.engine_funcs->GetMaxClients(); i++)
@@ -150,40 +188,39 @@ namespace features
                     float distance = (center - origin).length();
                     vec3_t needed_angle = (center - origin).normalize().to_angles().normalize_angle();
 
-                    float fov = this->get_fov_to_target(angles, needed_angle, distance);
-                    if (fov < best_fov)
-                    {
-                        best_target.target_id = i;
-                        best_target.target_hitbox_id = key;
-                        best_fov = fov;
-                    }
+                    auto result = this->get_fov_to_target(angles, needed_angle, distance);
 
-                    //g.engine_funcs->Con_Printf("Testing from %f %f %f, angles: %f %f %f\n", origin.x, origin.y, origin.z, angles.x, angles.y, angles.z);
-                    //g.engine_funcs->Con_Printf("Testing target %i (hitbox: %i), fov: %f, distance: %f ,angles: %f %f %f\n", entity->index, key, fov, distance, needed_angle.x, needed_angle.y, needed_angle.z);
+                    if ((result.fov < this->fov_max) || !this->fov_enabled)
+                    {
+                        // FOV is 10 times more important than real_distance
+                        auto metric = (result.fov) + (result.real_distance / 10);
+
+                        if (metric < best_metric)
+                        {
+                            best_target.target_id = i;
+                            best_target.target_hitbox_id = key;
+                            best_metric = metric;
+                        }
+                    }
+                    
                 }
             }
         }
 
-        //g.engine_funcs->Con_Printf("Found the best target %i (hitbox %i), fov: %f\n", best_target.target_id, best_target.target_hitbox_id, best_fov);
         return best_target;
     }
 
-    float aimbot::get_fov_to_target(const math::vec3& angles, const math::vec3& target_angles, float distance)
+    aimbot::fov_result aimbot::get_fov_to_target(const math::vec3& angles, const math::vec3& target_angles, float distance)
     {
-        /*float pitch_difference = std::abs(target_angles.x - angles.x);
-        float yaw_difference = std::abs(target_angles.y - angles.y);
+        auto fov = math::get_fov(angles, target_angles);
 
-        float pitch_distance = std::cos(math::to_rad(pitch_difference)) * distance;
-        float yaw_distance = std::sin(math::to_rad(yaw_difference)) * distance;*/
+        auto aiming_at = angles.to_vector();
+        aiming_at *= distance;
 
-        auto normal_angles = math::vec3(angles.x, angles.y, angles.z).normalize_angle();
-        auto normal_target_angles = math::vec3(target_angles.x, angles.y, angles.z).normalize_angle();
-        auto difference = normal_target_angles - normal_angles;
-        difference.x = std::abs(difference.x);
-        difference.y = std::abs(difference.y);
-        difference.normalize_angle();
+        auto aim_at = target_angles.to_vector();
+        aim_at *= distance;
 
-        //return std::sqrt((pitch_distance * pitch_distance) + (yaw_distance * yaw_distance));
-        return std::sqrt((difference.x * difference.x) + (difference.y * difference.y));
+        auto angle_distance = (aim_at - aiming_at).length();
+        return {fov, angle_distance};
     }
 }

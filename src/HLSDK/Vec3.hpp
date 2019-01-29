@@ -194,6 +194,25 @@ typedef struct vec3_s
             return angles;
         }
 
+        vec3_s to_vector() const
+        {
+            const float pi = std::acos(-1.0);
+            float sp, sy, cp, cy;
+
+            sy = std::sin(this->y * (pi / 180.0f));
+            sp = std::sin(this->x * (pi / 180.0f));
+            cy = std::cos(this->y * (pi / 180.0f));
+            cp = std::cos(this->x * (pi / 180.0f));
+
+            vec3_s result = {};
+
+            result.x = cp * cy;
+            result.y = cp * sy;
+            result.z = -sp;
+
+            return result;
+        }
+
         vec3_s multiply_add(float scale, const vec3_s& other) const
         {
             vec3_s result = {};

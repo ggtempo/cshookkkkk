@@ -47,7 +47,7 @@ namespace features
             glDisable(GL_DEPTH_TEST);
 
             // Bone test
-            glPointSize(6.0);
+            /*glPointSize(6.0);
             
             for (auto& [key, hitbox] : g.player_data[entity->index].hitboxes)
             {
@@ -66,7 +66,7 @@ namespace features
                 glBegin(GL_POINTS);
                 glVertex3f(center.x, center.y, center.z);
                 glEnd();
-            }
+            }*/
             
 
             glEnable(GL_DEPTH_TEST);
@@ -89,12 +89,14 @@ namespace features
 
     void visuals::show_menu()
     {
-        ImGui::Begin("ESP");
+        if (ImGui::Begin("ESP"))
+        {
             ImGui::Checkbox("Chams", &this->chams);
             ImGui::Checkbox("Chams team", &this->chams_team);
 
             ImGui::ColorEdit4("Enemy color", this->enemy_color.clr, ImGuiColorEditFlags_NoInputs);
             ImGui::ColorEdit4("Team color", this->team_color.clr, ImGuiColorEditFlags_NoInputs);
+        }
         ImGui::End();
     }
 }

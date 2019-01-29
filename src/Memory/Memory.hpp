@@ -81,25 +81,37 @@ namespace memory
 
 	inline std::pair<uintptr_t, uintptr_t> create_executable_memory2(const std::vector<uint8_t>& originalBytes, uintptr_t callAddress, uintptr_t returnAddress)
 	{
-		size_t funcSize = 20 + originalBytes.size();
+		size_t funcSize = 20 + originalBytes.size();// + 3;// + 4;
 		uint8_t* result = reinterpret_cast<uint8_t*>(std::malloc(funcSize));
 		uint32_t offset = 0;
 
 		auto returnAddressOffset = reinterpret_cast<uintptr_t>(result) + funcSize - 8;
 		auto callAddressOffset = reinterpret_cast<uintptr_t>(result) + funcSize - 4;
 
+        //result[offset++] = 0x9C;		// 0x9C - PUSHFD
+		//result[offset++] = 0x60;		// 0x60 - PUSHAD
+
 		// 0xE8 0x00000000 - 0xFF 0x25 0x00000000 - JMP 32bit indirect ....
 		result[offset++] = 0xFF;
 		result[offset++] = 0x25;
 		*(uint32_t*)(result + offset) = callAddressOffset; offset += 4;
 
-		uintptr_t postHookAddress = reinterpret_cast<uintptr_t>(result) + offset;
+        uintptr_t postHookAddress = reinterpret_cast<uintptr_t>(result) + offset;
+
+        // We add 4 to ESP so that the call from the original function correctly restores using POPAD, POPFD
+        //result[offset++] = 0x83;        // Add
+        //result[offset++] = 0xc4;        // ESP
+        //result[offset++] = 0x4;         // 4
+
+        //result[offset++] = 0x61;		// 0x61 - POPAD
+		//result[offset++] = 0x9D;		// 0x9D - POPFD
+		
 
 		// Restore original bytes
 		for (auto i = 0; i < originalBytes.size(); i++)
 		{
 			result[offset++] = originalBytes[i];
-		}		
+		}
 
 		// Jump to original function - 0xFF 0x25 0x00000000 - JMP 32bit absolute
 		result[offset++] = 0xFF;
