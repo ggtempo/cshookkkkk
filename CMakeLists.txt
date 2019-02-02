@@ -12,9 +12,15 @@ ADD_DEFINITIONS(-DNOMINMAX)
 
 set(CMAKE_SYSTEM_PROCESSOR "i686")
 
+# Statically link all libraries
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m32" CACHE STRING "c++ flags")
 set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} -m32" CACHE STRING "c flags")
 
+set_target_properties(CSHook PROPERTIES LINK_SEARCH_START_STATIC 1)
+set_target_properties(CSHook PROPERTIES LINK_SEARCH_END_STATIC 1)
+set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libgcc -static-libstdc++ -static")
 
 # Debugging stuff
 add_compile_options(-Wall -Wextra -Wpedantic)

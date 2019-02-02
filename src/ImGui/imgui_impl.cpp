@@ -12,6 +12,9 @@
 
 #include <tchar.h>
 
+#include <iostream>
+#include <string>
+
 // OpenGL Data
 static GLuint       g_FontTexture = 0;
 
@@ -26,6 +29,31 @@ static GLuint       g_ShaderHandle = 0, g_VertHandle = 0, g_FragHandle = 0;
 static int          g_AttribLocationTex = 0, g_AttribLocationProjMtx = 0;
 static int          g_AttribLocationPosition = 0, g_AttribLocationUV = 0, g_AttribLocationColor = 0;
 static unsigned int g_VboHandle = 0, g_ElementsHandle = 0;
+
+void _check_gl_error(const char *file, int line)
+{
+    //static auto& g = globals::instance();
+    GLenum err (glGetError());
+    
+    while(err!=GL_NO_ERROR) {
+            std::string error;
+
+            switch(err) {
+                    case GL_INVALID_OPERATION:      error="INVALID_OPERATION";      break;
+                    case GL_INVALID_ENUM:           error="INVALID_ENUM";           break;
+                    case GL_INVALID_VALUE:          error="INVALID_VALUE";          break;
+                    case GL_OUT_OF_MEMORY:          error="OUT_OF_MEMORY";          break;
+                    case GL_INVALID_FRAMEBUFFER_OPERATION:  error="INVALID_FRAMEBUFFER_OPERATION";  break;
+                    default:
+                        error = std::to_string(err);
+                        break;
+            }
+
+            std::cout << "GL_" << error.c_str() << " - " << file << ":" << line << std::endl;
+
+            err=glGetError();
+    }
+}
 
 // Functions
 
@@ -85,18 +113,21 @@ static void ImGui_Impl_UpdateMousePos()
             io.MousePos = ImVec2((float)pos.x, (float)pos.y);
 }
 
+void ImGui_Impl_LoadGL()
+{
+    int version = gladLoaderLoadGL();
+    if (!version) {
+        //printf("Unable to load OpenGL\n");
+        return;
+    }
+}
+
 bool ImGui_Impl_Init(void* hwnd)
 {
     ImGuiIO& io = ImGui::GetIO();
     io.BackendRendererName = "imgui_impl_opengl3";
 
-    auto glsl_version = "#version 130";
-
-    int version = gladLoaderLoadGL();
-    if (!version) {
-        //printf("Unable to load OpenGL\n");
-        return 1;
-    }
+    auto glsl_version = "#version 130";    
 
     IM_ASSERT((int)strlen(glsl_version) + 2 < IM_ARRAYSIZE(g_GlslVersionString));
     strcpy(g_GlslVersionString, glsl_version);

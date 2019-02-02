@@ -36,6 +36,7 @@ namespace features
                 this->enabled = false;
                 this->team = false;
                 this->silent = false;
+                this->auto_fire = false;
                 this->fov_enabled = false;
                 this->fov_max = 360.0f;
                 this->smooth_enabled = false;
@@ -66,6 +67,8 @@ namespace features
             bool enabled;
             bool team;
             bool silent;
+
+            bool auto_fire;
 
             bool fov_enabled;
             float fov_max;

@@ -1,7 +1,7 @@
 #include <cstring>
 #include <Windows.h>
 #include "hooks.hpp"
-#include <gl/GL.h>
+#include <glad/gl.h>
 
 #include "../Utils/globals.hpp"
 #include "../Utils/math.hpp"
@@ -15,6 +15,7 @@
 #include "../Features/Triggerbot/triggerbot.hpp"
 #include "../Features/Visuals/visuals.hpp"
 #include "../Features/Aimbot/aimbot.hpp"
+#include "../Features/Removals/removals.hpp"
 #include "../HLSDK/Weapons.hpp"
 
 #include <iostream>
@@ -81,8 +82,6 @@ namespace hooks
             io.MouseDrawCursor = false;
         }
 
-        
-
         return reinterpret_cast<WNDPRC>(g.original_window_proc)(hWnd, uMsg, wParam, lParam);
     }
 
@@ -93,35 +92,18 @@ namespace hooks
         static auto& g = globals::instance();
         static auto original_func = reinterpret_cast<wglSwapBuffersFn>(g.original_wgl_swap_buffers);
 
-        GLint viewport[4];
-        glGetIntegerv(GL_VIEWPORT, viewport);
-        
-        glViewport(0, 0, viewport[2], viewport[3]);
+        if (!g.first)
+        {
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);check_gl_error();
+            glDrawBuffer(GL_BACK);check_gl_error();
+        }
 
-        glMatrixMode(GL_PROJECTION);
-        glPushMatrix();
-        glLoadIdentity();
-
-        // set the limits of our ortho projection
-        glOrtho(0, viewport[2], viewport[3], 0, -1, 100);
-
-        glMatrixMode(GL_MODELVIEW);
-        glPushMatrix();
-        glLoadIdentity();
-
-        glPushMatrix();
-        glMatrixMode(GL_TEXTURE);
-        glLoadIdentity();
-
-        glDisable(GL_CULL_FACE);
-        glDisable(GL_DEPTH_TEST);
-
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-        // Do our custom rendering
-
-        if (g.first) {
+        if (g.first)
+        {
             g.first = false;
+
+            // Load GL
+            ImGui_Impl_LoadGL();
 
             // Debug OpenGL Stuff
             auto version = reinterpret_cast<const char*>(glGetString(GL_VERSION));
@@ -142,8 +124,63 @@ namespace hooks
 
             // Setup Platform/Renderer bindings
             ImGui_Impl_Init(g.main_window);
+
+            // mirrorcam framebuffer / texture
+            // Generate necessary buffer
+            glGenFramebuffers(1, &g.mirrorcam_buffer);check_gl_error();
+            glBindFramebuffer(GL_FRAMEBUFFER, g.mirrorcam_buffer);check_gl_error();
+
+            // Generate texture
+            glGenTextures(1, &g.mirrorcam_texture);check_gl_error();
+            glBindTexture(GL_TEXTURE_2D, g.mirrorcam_texture);check_gl_error();
+
+            // Texture settings
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1280, 960, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);check_gl_error();
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);check_gl_error();
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);check_gl_error();
+
+            // Generate depth buffer
+            glGenRenderbuffers(1, &g.mirrorcam_depth_buffer);check_gl_error();
+            glBindRenderbuffer(GL_RENDERBUFFER, g.mirrorcam_depth_buffer);check_gl_error();
+
+            // Depth buffer settings
+            glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, 1280, 960);check_gl_error();
+
+            // Attach texture and depth buffer to framebuffer
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, g.mirrorcam_texture, 0);check_gl_error();
+            glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, g.mirrorcam_depth_buffer);check_gl_error();
+
+            // Unbind buffer
+            glBindTexture(GL_TEXTURE_2D, 0);check_gl_error();
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);check_gl_error();
+
         }
+
+        GLint viewport[4];
+        glGetIntegerv(GL_VIEWPORT, viewport);check_gl_error();
         
+        glViewport(0, 0, viewport[2], viewport[3]);check_gl_error();
+
+        glMatrixMode(GL_PROJECTION);check_gl_error();
+        glPushMatrix();check_gl_error();
+        glLoadIdentity();check_gl_error();
+
+        // set the limits of our ortho projection
+        glOrtho(0, viewport[2], viewport[3], 0, -1, 100);check_gl_error();
+
+        glMatrixMode(GL_MODELVIEW);check_gl_error();
+        glPushMatrix();check_gl_error();
+        glLoadIdentity();check_gl_error();
+
+        glMatrixMode(GL_TEXTURE);check_gl_error();
+        glPushMatrix();check_gl_error();
+        glLoadIdentity();check_gl_error();
+
+        glDisable(GL_CULL_FACE);check_gl_error();
+        glDisable(GL_DEPTH_TEST);check_gl_error();
+
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);check_gl_error();
+       
         ImGui_Impl_NewFrame();
         ImGui::NewFrame();
 
@@ -242,18 +279,25 @@ namespace hooks
             ImGui::End();
         }
 
+        ImGui::Begin("Test");
+            auto pos = ImGui::GetCursorScreenPos();
+            auto size = ImGui::GetContentRegionMax();
+            auto bottom_right = ImVec2(pos.x + size.x, pos.y + size.y);
+            ImGui::GetWindowDrawList()->AddImage((void*)g.mirrorcam_texture, pos, bottom_right, ImVec2(0, 1), ImVec2(1, 0));
+        ImGui::End();
+
         ImGui::Render();
         ImGui_Impl_RenderDrawData(ImGui::GetDrawData());
 
-        glEnable(GL_CULL_FACE);
-        glEnable(GL_DEPTH_TEST);
+        glEnable(GL_CULL_FACE);check_gl_error();
+        glEnable(GL_DEPTH_TEST);check_gl_error();
 
-        glMatrixMode(GL_TEXTURE);
-        glPopMatrix();
-        glMatrixMode(GL_MODELVIEW);
-        glPopMatrix();
-        glMatrixMode(GL_PROJECTION);
-        glPopMatrix();
+        glMatrixMode(GL_TEXTURE);check_gl_error();
+        glPopMatrix();check_gl_error();
+        glMatrixMode(GL_MODELVIEW);check_gl_error();
+        glPopMatrix();check_gl_error();
+        glMatrixMode(GL_PROJECTION);check_gl_error();
+        glPopMatrix();check_gl_error();
 
         return original_func(hDc);
     }
@@ -265,8 +309,6 @@ namespace hooks
         static auto original_func = g.studio_model_renderer_hook->get_original_vfunc<fnStudioRenderModel>(18);
         auto entity = g.engine_studio->GetCurrentEntity();
         auto local = g.engine_funcs->GetLocalPlayer();
-
-        //g.engine_funcs->Con_Printf("Studio called from player %i\n", entity->index);
 
         g.engine_studio->SetChromeOrigin();
         g.engine_studio->SetForceFaceFlags( 0 );
@@ -295,32 +337,30 @@ namespace hooks
 
         if (entity && entity->model && entity->player && entity != local)
         {
+            // Get model info
             auto model = g.engine_studio->SetupPlayerModel(entity->index);
             auto header = g.engine_studio->Mod_Extradata(model);
 
+            // How many hitboxes does the player have
             auto body_parts = header->numhitboxes;
 
+            // If he has any
             if (body_parts > 0)
             {
                 using transform_matrix = float[128][3][4];
-                // We have a valid model
                 auto p_transform = (transform_matrix*)g.engine_studio->StudioGetBoneTransform();
 
+                // Get hitbox info
                 auto studio_box = reinterpret_cast<mstudiobbox_t*>((byte*)header + header->hitboxindex);
 
+                // Go through every hitbox
                 for (int i = 0; i < body_parts; i++)
                 {
-                    auto bone = studio_box[i].bone;
-                    auto transform = math::matrix3x4((*p_transform)[bone]);
-                    auto box = math::bbox{studio_box[i].bbmin, studio_box[i].bbmax};
-                    g.player_data[entity->index].hitboxes[i] = {bone, false, box, transform};
-
-                    //Vector vMin, vMax;
-                    //VectorTransform( m_pStudioTransform[11].bbmin, (*m_pBoneTransform)[m_pStudioTransform[11].bone], vMin );
-                    //VectorTransform( m_pStudioTransform[11].bbmax, (*m_pBoneTransform)[m_pStudioTransform[11].bone], vMax );
-                    //g_Player[ pEnt->index ].vHitbox=(vMin+vMax)*0.5f;
-
-                    //g_Player[ pEnt->index ].bHitbox=true;
+                    // Copy important data
+                    auto bone = studio_box[i].bone;                                                 // Bone ID
+                    auto transform = math::matrix3x4((*p_transform)[bone]);                         // Transform matrix
+                    auto box = math::bbox{studio_box[i].bbmin, studio_box[i].bbmax};                // Hitbox coordinates (Top left corner + Bottom right corner)
+                    g.player_data[entity->index].hitboxes[i] = {bone, false, box, transform};       // Store the data
                 }
             }
         }
@@ -472,7 +512,7 @@ namespace hooks
         return original_func();
     }
 
-	void CL_CreateMove(float frametime, usercmd_t *cmd, int active)
+	void hk_cl_createmove(float frametime, usercmd_t *cmd, int active)
 	{
         static auto& g = globals::instance();
 		g.original_client_funcs->pCL_CreateMove(frametime, cmd, active);
@@ -498,54 +538,11 @@ namespace hooks
         features::aimbot::instance().create_move(frametime, cmd, active);
         features::triggerbot::instance().create_move(frametime, cmd, active);
         features::anti_aim::instance().create_move(frametime, cmd, active);
-
-        //g.engine_funcs->Con_Printf("Player with weapon id %i can fire in: %f, %f\n", g.local_player_data.weapon.id, g.local_player_data.weapon.next_attack, g.local_player_data.weapon.next_primary_attack);
-
-        if (g.no_recoil && (cmd->buttons & IN_ATTACK) && custom::is_gun(g.local_player_data.weapon.id))
-        {
-            cmd->viewangles -= g.punch_angles * 2;
-            cmd->viewangles.z = 0.0f;
-
-            cmd->viewangles.normalize_angle();
-        }
-
-        if (g.no_spread && (cmd->buttons & IN_ATTACK) && custom::is_gun(g.local_player_data.weapon.id))
-        {
-            // Get necessary info
-            auto info = get_weapon_info(g.local_player_data.weapon.id);
-            float velocity = math::vec3(g.local_player_data.velocity.x, g.local_player_data.velocity.y, 0.0f).length();
-            auto spread = custom::get_spread(g.local_player_data.weapon.id, info->m_flAccuracy, velocity,
-                            g.player_move->flags & FL_ONGROUND, g.player_move->flags & FL_DUCKING,
-                            0.0f, info->m_iWeaponState);
-            unsigned int shared_rand = g.local_player_data.weapon.seed;
-
-            math::vec3 view_angles = cmd->viewangles.normalize_angle();
-
-            auto spread_vec = custom::get_spread_vec(shared_rand, spread);
-
-            math::vec3 forward, right, up, direction;
-            math::vec3 temp = {0.0, 0.0, 0.0};
-            temp.to_vectors(forward, right, up);
-
-            direction = (forward + (right * spread_vec.x) + (up * spread_vec.y)).normalize();
-            auto angles = direction.to_angles();
-            angles.x -= view_angles.x;
-
-            angles.normalize_angle();
-            angles.transpose(forward, right, up);
-            direction = forward;
-
-            angles = direction.to_angles(up);
-            angles.normalize_angle();
-            angles.y += view_angles.y;
-            angles.normalize_angle();
-
-            cmd->viewangles = angles;
-        }
+        features::removals::instance().create_move(frametime, cmd, active);
 
         auto move = vec3_t{cmd->forwardmove, cmd->sidemove, cmd->upmove};
         auto new_move = math::correct_movement(original_angles, cmd->viewangles, move);
-            
+
         // Reset movement bits
         cmd->buttons &= ~IN_FORWARD;
         cmd->buttons &= ~IN_BACK;
@@ -556,10 +553,13 @@ namespace hooks
         cmd->sidemove = new_move.y;
         cmd->upmove = new_move.z;
 
-        //g.engine_funcs->Con_Printf("Time is: %f\n", g.engine_funcs->GetClientTime());
+        /*if (GetAsyncKeyState(VK_MENU))
+        {
+            *g.engine_time += frametime * 5.0 / 3.0;
+        }*/
 	}
 
-	void HUD_ClientMove(playermove_t* ppmove, int server)
+	void hk_hud_clientmove(playermove_t* ppmove, int server)
 	{
         static auto& g = globals::instance();
 
@@ -656,20 +656,39 @@ namespace hooks
     void hk_calc_ref_def(ref_params_t* params)
     {
         static auto& g = globals::instance();
-        static auto original_func = g.original_client_funcs->pCalcRefdef;//reinterpret_cast<fnCalcRefDef>(g.original_ref_def);
-
-        g.punch_angles.x = params->punchangle[0];
-        g.punch_angles.y = params->punchangle[1];
-        g.punch_angles.z = params->punchangle[2];
-
-        if (g.no_visual_recoil)
-        {
-            params->punchangle[0] = 0.0f;
-            params->punchangle[1] = 0.0f;
-            params->punchangle[2] = 0.0f;
-        }
+        static auto original_func = g.original_client_funcs->pCalcRefdef;
 
         original_func(params);
+
+        if (params->nextView == 0)
+        {
+            if (g.local_player_data.alive && g.engine_funcs->GetLocalPlayer()->curstate.solid != SOLID_NOT)
+            {
+                // Mirror cam view
+                GLenum buffers[1] = {GL_COLOR_ATTACHMENT0};
+                glBindFramebuffer(GL_FRAMEBUFFER, g.mirrorcam_buffer);check_gl_error();
+                glDrawBuffers(1, buffers);check_gl_error();
+                
+                params->nextView = 1;
+
+                params->viewport[0] = 0;
+                params->viewport[1] = 0;
+                params->viewangles[1] += 180;
+            }
+        }
+        else if (params->nextView == 1)
+        {
+            if(g.local_player_data.alive && g.engine_funcs->GetLocalPlayer()->curstate.solid != SOLID_NOT)
+            {
+                // Normal view - for some reason switched
+                glBindFramebuffer(GL_FRAMEBUFFER, 0);check_gl_error();
+                glDrawBuffer(GL_BACK);check_gl_error();
+
+                params->nextView = 0;
+
+                features::removals::instance().calc_ref_def(params);
+            }
+        }      
     }
 
     
@@ -691,17 +710,12 @@ namespace hooks
             
             g.player_data[index].alive = !(status & 1);
         }
-        else if (index != g.engine_funcs->GetLocalPlayer()->index)
+        else if (index == g.engine_funcs->GetLocalPlayer()->index)
         {
             g.local_player_data.alive = !(status & 1);
         }
 
         return original_func(name, size, buffer);
-    }
-
-    float get_current_time()
-    {
-        return 0.0;
     }
 
 	void init()
@@ -724,14 +738,23 @@ namespace hooks
         uintptr_t weapons_post_think_rel = *(uintptr_t*)(g.original_client_funcs->pPostRunCmd + 0x2A);
         uintptr_t weapons_post_think_abs = weapons_post_think_rel + ((uintptr_t)g.original_client_funcs->pPostRunCmd + 0x2E);
 
-        uintptr_t globals = *(uintptr_t*)(weapons_post_think_abs + 0xC) + weapons_post_think_abs + 0x10;
+        uintptr_t init_client_weapons_rel = *(uintptr_t*)(weapons_post_think_abs + 0x3);
+        uintptr_t init_client_weapons_abs = init_client_weapons_rel + ((uintptr_t)weapons_post_think_abs + 0x7);
+
+        uintptr_t globals = *(uintptr_t*)(init_client_weapons_abs + 0x23);// + weapons_post_think_abs + 0x10;
         uintptr_t get_weapon_info = *(uintptr_t*)(weapons_post_think_abs + 0x1E) + weapons_post_think_abs + 0x22;
+
+        uintptr_t globals2 = *(uintptr_t*)(weapons_post_think_abs + 0xC);// + weapons_post_think_abs + 0x10;
+
         g.game_globals = (globalvars_t*)globals;
+        g.game_globals_2 = (globalvars_t**)globals2;
         g.get_weapon_info = get_weapon_info;
 
+        g.engine_funcs->Con_Printf("Globals: 0x%X, 0x%X\n", globals2, weapons_post_think_abs);
+
         // Hook client funcs
-		g.client_funcs->pCL_CreateMove = CL_CreateMove;
-		g.client_funcs->pClientMove = HUD_ClientMove;
+		g.client_funcs->pCL_CreateMove = hk_cl_createmove;
+		g.client_funcs->pClientMove = hk_hud_clientmove;
         g.client_funcs->pCalcRefdef = hk_calc_ref_def;
         g.client_funcs->pPostRunCmd = hk_post_run_cmd;
 
@@ -754,11 +777,18 @@ namespace hooks
 
         g.original_studio_check_bbox = reinterpret_cast<uintptr_t>(g.engine_studio->StudioCheckBBox);
         g.engine_studio->StudioCheckBBox = hk_studio_check_bbox;
-        //g.original_hook_usr_msg = reinterpret_cast<uintptr_t>(g.engine_funcs->pfnHookUserMsg);
-        //g.engine_funcs->pfnHookUserMsg = reinterpret_cast<pfnEngSrc_pfnHookUserMsg_t>(hkHookUserMsg);
 
-        //g.engine_funcs->GetClientTime = getCurrentTime;
-        
+        g.engine_time = *(double**)(g.engine_funcs->pNetAPI->Status + 0x84);
+
+
+        // CL_WritePacket
+        auto send_packet_ptr = memory::find_pattern("hw.dll", 
+            {
+                0x56, 0x57, 0x33, 0xFF, 0x3B, 0xC7, 0x0F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x83
+            }, 0);
+
+        g.engine_funcs->Con_Printf("SendPacket: 0x%X\n", send_packet_ptr);
+
 
         auto hook_usr_msg = (uint32_t)g.engine_funcs->pfnHookUserMsg;
         uint32_t register_usr_msg = *(uint32_t*)(hook_usr_msg + 0x1B) + hook_usr_msg + (0x1F);
@@ -784,8 +814,6 @@ namespace hooks
             // Go to the next one
             element = element->pNext;
         }
-
-        g.engine_funcs->Con_Printf("Func at : 0x%X\n", hk_post_run_cmd);
 	}
 
     cl_enginefunc_t* get_engine_funcs()

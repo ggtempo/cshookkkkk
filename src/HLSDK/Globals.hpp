@@ -198,6 +198,16 @@ struct edict_s
 	// other fields from progs come immediately after
 };
 
+// edict->solid values
+// NOTE: Some movetypes will cause collisions independent of SOLID_NOT/SOLID_TRIGGER when the entity moves
+// SOLID only effects OTHER entities colliding with this one when they move - UGH!
+#define	SOLID_NOT				0		// no interaction with other objects
+#define	SOLID_TRIGGER			1		// touch on edge, but not blocking
+#define	SOLID_BBOX				2		// touch on edge, block
+#define	SOLID_SLIDEBOX			3		// touch on edge, but not an onground
+#define	SOLID_BSP				4		// bsp clip, touch on edge, block
+
+
 typedef struct
 {	
 	float		time;

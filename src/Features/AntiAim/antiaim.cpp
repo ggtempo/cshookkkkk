@@ -94,7 +94,8 @@ namespace features
             {"Spin", "Yaw is spinning"}
         };
 
-        ImGui::Begin("Anti-Aim");
+        if (ImGui::Begin("Anti-Aim"))
+        {
             ImGui::Checkbox("Enabled", &this->enabled);
             
             if (ImGui::BeginCombo("Pitch mode", pitch_modes[(int)this->pitch_mode].name))
@@ -131,6 +132,7 @@ namespace features
                 }
                 ImGui::EndCombo();
             }
+        }
         ImGui::End();
     }
 }

@@ -18,6 +18,8 @@ namespace features
                 this->enemy_color = {
                     1.0, 0.0, 0.0, 0.3
                 };
+
+                this->chams_mode = chams_modes::CHAMS_NORMAL;
             }
         
         public:
@@ -31,8 +33,16 @@ namespace features
             void show_menu();
 
         private:
+            enum class chams_modes
+            {
+                CHAMS_NORMAL,
+                CHAMS_NOTEXTURE
+            };
+
+        private:
             bool chams;
             bool chams_team;
+            chams_modes chams_mode;
 
             custom::color4f team_color;
             custom::color4f enemy_color;

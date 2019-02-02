@@ -13,6 +13,7 @@ namespace features
         {
             vec3_t start = g.player_move->origin + g.player_move->view_ofs;
             vec3_t angles = cmd->viewangles;
+            vec3_t forward = angles.to_vector() * 8192;
 
             // Get the best target
             auto best_target = this->find_best_target(start, angles);
@@ -60,6 +61,23 @@ namespace features
                     // If we don't use silent aim, set the rendered angle as well (they will be a frame late tho)
                     if (!this->silent)
                         g.engine_funcs->SetViewAngles(normalized);
+
+                    // If we should auto fire, check if we are aiming at a hitbox
+                    if (this->auto_fire)
+                    {
+                        auto new_forward = cmd->viewangles.to_vector() * 8912;
+
+                        if (hitbox.visible && (this->target_hitboxes[best_target.target_hitbox_id] || this->all_hitboxes) && key != hitbox_numbers::unknown)
+                        {
+                            // If the hitbox is visible and should trigger shooting, check if our crosshair intersects it
+                            if (auto result = math::ray_hits_rbbox(start, new_forward, hitbox.box, hitbox.matrix); result.hit)
+                            {
+                                // Only fire if we have enough ammo
+                                if (!g.local_player_data.weapon.in_reload)
+                                    cmd->buttons |= IN_ATTACK;
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -74,6 +92,7 @@ namespace features
             ImGui::Checkbox("Aimbot enabled", &this->enabled);
             ImGui::Checkbox("Aim team", &this->team);
             ImGui::Checkbox("Silent", &this->silent);
+            ImGui::Checkbox("Auto fire", &this->auto_fire);
 
             ImGui::Checkbox("###FOV Enabled", &this->fov_enabled);
             ImGui::SameLine();

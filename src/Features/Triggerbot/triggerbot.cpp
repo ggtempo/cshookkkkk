@@ -14,7 +14,7 @@ namespace features
         {
             vec3_t start = g.player_move->origin + g.player_move->view_ofs;
             vec3_t angles = cmd->viewangles;
-            vec3_t forward = angles.to_vector() * 2148;
+            vec3_t forward = angles.to_vector() * 8192;
 
             // Go through every player
             for (auto i = 0; i < g.engine_funcs->GetMaxClients(); i++)
@@ -41,7 +41,8 @@ namespace features
 
                             // Check if we should fire, or just stage the next fire
                             if (((this->next_fire != -1) && (this->next_fire <= ms)) || (this->delay == 0) &&
-                                g.local_player_data.weapon.next_attack <= 0.0 && g.local_player_data.weapon.next_primary_attack <= 0.0)
+                                g.local_player_data.weapon.next_attack <= 0.0 && g.local_player_data.weapon.next_primary_attack <= 0.0 &&
+                                !g.local_player_data.weapon.in_reload)
                             {
                                 // Fire and reset the timer
                                 cmd->buttons |= IN_ATTACK;

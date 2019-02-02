@@ -100,6 +100,9 @@ class globals
         uintptr_t           original_studio_check_bbox;
 
         globalvars_t*       game_globals;
+        globalvars_t**      game_globals_2;
+
+        double*             engine_time;
 
         uintptr_t           get_weapon_info;
 
@@ -116,6 +119,11 @@ class globals
         // Key catching
         bool catch_keys;
         int captured_key;
+
+        // Opengl
+        unsigned int mirrorcam_buffer;
+        unsigned int mirrorcam_texture;
+        unsigned int mirrorcam_depth_buffer;
 };
 
 inline CBasePlayerWeapon* get_weapon_info(int id)

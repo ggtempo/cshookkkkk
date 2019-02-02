@@ -264,6 +264,24 @@ typedef int						(*pfnEngSrc_pfnGetAppID_t)			( void );
 typedef cmdalias_t*				(*pfnEngSrc_pfnGetAliases_t)		( void );
 typedef void					(*pfnEngSrc_pfnVguiWrap2_GetMouseDelta_t) ( int *x, int *y );
 
+
+typedef struct net_api_s
+{
+	// APIs
+	void		( *InitNetworking )( void );
+	void		( *Status ) ( struct net_status_s *status );
+	void		( *SendRequest) ( int context, int request, int flags, double timeout, struct netadr_s *remote_address, struct net_api_response_func_t response );
+	void		( *CancelRequest ) ( int context );
+	void		( *CancelAllRequests ) ( void );
+	char		*( *AdrToString ) ( struct netadr_s *a );
+	int			( *CompareAdr ) ( struct netadr_s *a, struct netadr_s *b );
+	int			( *StringToAdr ) ( char *s, struct netadr_s *a );
+	const char *( *ValueForKey ) ( const char *s, const char *key );
+	void		( *RemoveKey ) ( char *s, const char *key );
+	void		( *SetValueForKey ) (char *s, const char *key, const char *value, int maxsize );
+} net_api_t;
+
+
 // Pointers to the exported engine functions themselves
 typedef struct cl_enginefuncs_s
 {
@@ -353,7 +371,7 @@ typedef struct cl_enginefuncs_s
 	struct efx_api_s			*pEfxAPI;
 	struct event_api_s			*pEventAPI;
 	struct demo_api_s			*pDemoAPI;
-	struct net_api_s			*pNetAPI;
+	net_api_s			*pNetAPI;
 	struct IVoiceTweak_s		*pVoiceTweak;
 	pfnEngSrc_IsSpectateOnly_t				IsSpectateOnly;
 	pfnEngSrc_LoadMapSprite_t				LoadMapSprite;
