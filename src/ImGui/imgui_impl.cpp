@@ -15,6 +15,8 @@
 #include <iostream>
 #include <string>
 
+#include "../Utils/globals.hpp"
+
 // OpenGL Data
 static GLuint       g_FontTexture = 0;
 
@@ -49,7 +51,11 @@ void _check_gl_error(const char *file, int line)
                         break;
             }
 
+            //
+
+            static auto& g = globals::instance();
             std::cout << "GL_" << error.c_str() << " - " << file << ":" << line << std::endl;
+            g.engine_funcs->Con_Printf("GL_%s - %s:%i\n", error.c_str(), file, line);
 
             err=glGetError();
     }

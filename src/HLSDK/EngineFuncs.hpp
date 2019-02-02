@@ -127,6 +127,8 @@ typedef struct usermsg_s {
 	pfnUserMsgHook pfn;
 } usermsg_t;
 
+typedef uint8_t byte;
+
 // Function type declarations for engine exports
 typedef HSPRITE						(*pfnEngSrc_pfnSPR_Load_t )			( const char *szPicName );
 typedef int							(*pfnEngSrc_pfnSPR_Frames_t )			( HSPRITE hPic );

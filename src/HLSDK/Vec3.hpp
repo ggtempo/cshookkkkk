@@ -22,6 +22,8 @@ typedef struct vec3_s
         // Copy constructor
         vec3_s(const vec3_s& other) : x(other.x), y(other.y), z(other.z) {}
 
+        vec3_s(const float* other) : x(other[0]), y(other[1]), z(other[2]) {}
+
         // Copy assignment
         vec3_s& operator=(const vec3_s& other)
         {

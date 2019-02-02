@@ -8,12 +8,12 @@
 typedef struct ref_params_s
 {
 	// Output
-	float	vieworg[3];
-	float	viewangles[3];
+	vec3_s	vieworg;
+	vec3_s	viewangles;
 
-	float	forward[3];
-	float	right[3];
-	float   up[3];
+	vec3_s	forward;
+	vec3_s	right;
+	vec3_s   up;
 
 	// Client frametime;
 	float	frametime;
@@ -27,19 +27,19 @@ typedef struct ref_params_s
 	int		onground;
 	int		waterlevel;
 
-	float	simvel[3];
-	float	simorg[3];
+	vec3_s	simvel;
+	vec3_s	simorg;
 
-	float	viewheight[3];
+	vec3_s	viewheight;
 	float	idealpitch;
 
-	float	cl_viewangles[3];
+	vec3_s	cl_viewangles;
 
 	int		health;
-	float	crosshairangle[3];
+	vec3_s	crosshairangle;
 	float	viewsize;
 
-	float	punchangle[3];
+	vec3_s	punchangle;
 	int		maxclients;
 	int		viewentity;
 	int		playernum;

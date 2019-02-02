@@ -276,15 +276,20 @@ namespace hooks
                 ImGui::Checkbox("Visual no recoil", &g.no_visual_recoil);
                 ImGui::Checkbox("No recoil", &g.no_recoil);
                 ImGui::Checkbox("No spread", &g.no_spread);
+                ImGui::Checkbox("Mirror cam", &g.mirror_cam_enabled);
+                ImGui::Checkbox("Third person", &g.third_person_enabled);
             ImGui::End();
         }
 
-        ImGui::Begin("Test");
-            auto pos = ImGui::GetCursorScreenPos();
-            auto size = ImGui::GetContentRegionMax();
-            auto bottom_right = ImVec2(pos.x + size.x, pos.y + size.y);
-            ImGui::GetWindowDrawList()->AddImage((void*)g.mirrorcam_texture, pos, bottom_right, ImVec2(0, 1), ImVec2(1, 0));
-        ImGui::End();
+        if (g.mirror_cam_enabled)
+        {
+            ImGui::Begin("Test");
+                auto pos = ImGui::GetCursorScreenPos();
+                auto size = ImGui::GetContentRegionMax();
+                auto bottom_right = ImVec2(pos.x + size.x, pos.y + size.y);
+                ImGui::GetWindowDrawList()->AddImage((void*)g.mirrorcam_texture, pos, bottom_right, ImVec2(0, 1), ImVec2(1, 0));
+            ImGui::End();
+        }
 
         ImGui::Render();
         ImGui_Impl_RenderDrawData(ImGui::GetDrawData());
@@ -512,7 +517,7 @@ namespace hooks
         return original_func();
     }
 
-	void hk_cl_createmove(float frametime, usercmd_t *cmd, int active)
+	void eatemove(float frametime, usercmd_t *cmd, int active)
 	{
         static auto& g = globals::instance();
 		g.original_client_funcs->pCL_CreateMove(frametime, cmd, active);
@@ -552,6 +557,20 @@ namespace hooks
         cmd->forwardmove = new_move.x;
         cmd->sidemove = new_move.y;
         cmd->upmove = new_move.z;
+
+        /*if (g.third_person_enabled && g.local_player_data.alive)
+        {
+            g.engine_funcs->pfnGetCvarPointer("chase_active")->value = 1;
+            g.engine_funcs->pfnGetCvarPointer("r_drawviewmodel")->value = 0;
+            //g.engine_funcs->pfnGetCvarPointer("chase_back")->value = 500;
+        }
+        else
+        {
+            g.engine_funcs->pfnGetCvarPointer("chase_active")->value = 0;
+            g.engine_funcs->pfnGetCvarPointer("r_drawviewmodel")->value = 1;
+            //g.engine_funcs->pfnGetCvarPointer("chase_back")->value = 100;
+        }*/
+        
 
         /*if (GetAsyncKeyState(VK_MENU))
         {
@@ -658,40 +677,65 @@ namespace hooks
         static auto& g = globals::instance();
         static auto original_func = g.original_client_funcs->pCalcRefdef;
 
-        original_func(params);
-
         if (params->nextView == 0)
         {
-            if (g.local_player_data.alive && g.engine_funcs->GetLocalPlayer()->curstate.solid != SOLID_NOT)
-            {
-                // Mirror cam view
-                GLenum buffers[1] = {GL_COLOR_ATTACHMENT0};
-                glBindFramebuffer(GL_FRAMEBUFFER, g.mirrorcam_buffer);check_gl_error();
-                glDrawBuffers(1, buffers);check_gl_error();
-                
-                params->nextView = 1;
+            features::removals::instance().calc_ref_def(params);
+        }
 
-                params->viewport[0] = 0;
-                params->viewport[1] = 0;
-                params->viewangles[1] += 180;
+        original_func(params);
+
+        if (g.third_person_enabled)
+        {
+            math::vec3 offset = {0, 0, 0};
+
+            offset += (math::vec3(params->right) * 0);
+            offset += (math::vec3(params->up) * 15);
+            offset += (math::vec3(params->forward) * - 100);
+
+            params->vieworg += offset;
+        }
+
+        /*if (!g.mirror_cam_enabled)
+        {
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);check_gl_error();
+            glDrawBuffer(GL_BACK);check_gl_error();
+
+            //features::removals::instance().calc_ref_def(params);
+            return;
+        }*/
+        
+        if (g.mirror_cam_enabled)
+        {
+            if (params->nextView == 1)
+            {
+                if(g.local_player_data.alive && g.engine_funcs->GetLocalPlayer()->curstate.solid != SOLID_NOT)
+                {
+                    // Normal view - for some reason switched
+                    glBindFramebuffer(GL_FRAMEBUFFER, 0);check_gl_error();
+                    glDrawBuffer(GL_BACK);check_gl_error();
+
+                    params->nextView = 0;
+                }
+            }   
+            else if (params->nextView == 0)
+            {
+                if (g.local_player_data.alive && g.engine_funcs->GetLocalPlayer()->curstate.solid != SOLID_NOT)
+                {
+                    // Mirror cam view
+                    GLenum buffers[1] = {GL_COLOR_ATTACHMENT0};
+                    glBindFramebuffer(GL_FRAMEBUFFER, g.mirrorcam_buffer);check_gl_error();
+                    glDrawBuffers(1, buffers);check_gl_error();
+                    
+                    params->nextView = 1;
+
+                    params->viewport[0] = 0;
+                    params->viewport[1] = 0;
+                    params->viewangles[1] += 180;
+                }
             }
         }
-        else if (params->nextView == 1)
-        {
-            if(g.local_player_data.alive && g.engine_funcs->GetLocalPlayer()->curstate.solid != SOLID_NOT)
-            {
-                // Normal view - for some reason switched
-                glBindFramebuffer(GL_FRAMEBUFFER, 0);check_gl_error();
-                glDrawBuffer(GL_BACK);check_gl_error();
-
-                params->nextView = 0;
-
-                features::removals::instance().calc_ref_def(params);
-            }
-        }      
     }
 
-    
     int hk_score_attrib(const char* name, int size, void* buffer)
     {
         typedef int(*fnScoreAttrib)(const char*, int, void*);
@@ -716,6 +760,12 @@ namespace hooks
         }
 
         return original_func(name, size, buffer);
+    }
+
+    bool hk_is_third_person()
+    {
+        static auto& g = globals::instance();
+        return g.third_person_enabled;
     }
 
 	void init()
@@ -753,7 +803,7 @@ namespace hooks
         g.engine_funcs->Con_Printf("Globals: 0x%X, 0x%X\n", globals2, weapons_post_think_abs);
 
         // Hook client funcs
-		g.client_funcs->pCL_CreateMove = hk_cl_createmove;
+		g.client_funcs->pCL_CreateMove = eatemove;
 		g.client_funcs->pClientMove = hk_hud_clientmove;
         g.client_funcs->pCalcRefdef = hk_calc_ref_def;
         g.client_funcs->pPostRunCmd = hk_post_run_cmd;
@@ -780,6 +830,8 @@ namespace hooks
 
         g.engine_time = *(double**)(g.engine_funcs->pNetAPI->Status + 0x84);
 
+
+        g.client_funcs->pCL_IsThirdPerson = (void*)hk_is_third_person;
 
         // CL_WritePacket
         auto send_packet_ptr = memory::find_pattern("hw.dll", 

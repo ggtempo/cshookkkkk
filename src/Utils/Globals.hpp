@@ -27,6 +27,8 @@ class globals
             this->no_visual_recoil = false;
             this->no_recoil = false;
             this->bhop_enabled = false;
+            this->mirror_cam_enabled = false;
+            this->third_person_enabled = false;
 
             this->no_spread = false;
             
@@ -71,6 +73,9 @@ class globals
         bool no_recoil;
 
         bool no_spread;
+
+        bool mirror_cam_enabled;
+        bool third_person_enabled;
 
         int render_mode;
         int render_fx;
