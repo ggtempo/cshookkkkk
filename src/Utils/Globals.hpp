@@ -47,6 +47,11 @@ class globals
             this->captured_key = -1;
 
             this->anti_aim_pitch_override = false;
+
+
+            this->mirrorcam_buffer = 0;
+            this->mirrorcam_texture = 0;
+            this->mirrorcam_depth_buffer = 0;
         }
 
     public:

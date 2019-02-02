@@ -103,27 +103,31 @@ namespace hooks
             g.first = false;
 
             // Load GL
-            ImGui_Impl_LoadGL();
+            ImGui_Impl_LoadGL();check_gl_error();
 
             // Debug OpenGL Stuff
-            auto version = reinterpret_cast<const char*>(glGetString(GL_VERSION));
-            auto extensions = reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS));
+            auto version = reinterpret_cast<const char*>(glGetString(GL_VERSION));check_gl_error();
+            auto extensions = reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS));check_gl_error();
             
+            double depth_range[2];
+            glGetDoublev(GL_DEPTH_RANGE, depth_range);
 
-            IMGUI_CHECKVERSION();
-            ImGui::CreateContext();
+            g.engine_funcs->Con_Printf("Range: %f %f\n", depth_range[0], depth_range[1]);
 
-            ImGuiIO& io = ImGui::GetIO();
-            auto& style = ImGui::GetStyle();
+            IMGUI_CHECKVERSION();check_gl_error();
+            ImGui::CreateContext();check_gl_error();
+
+            ImGuiIO& io = ImGui::GetIO();check_gl_error();
+            auto& style = ImGui::GetStyle();check_gl_error();
 
             io.MouseDrawCursor = false;
 
             // Setup Dear ImGui style
-            ImGui::StyleColorsDark();
+            ImGui::StyleColorsDark();check_gl_error();
             //ImGui::StyleColorsClassic();
 
             // Setup Platform/Renderer bindings
-            ImGui_Impl_Init(g.main_window);
+            ImGui_Impl_Init(g.main_window);check_gl_error();
 
             // mirrorcam framebuffer / texture
             // Generate necessary buffer
@@ -149,6 +153,13 @@ namespace hooks
             // Attach texture and depth buffer to framebuffer
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, g.mirrorcam_texture, 0);check_gl_error();
             glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, g.mirrorcam_depth_buffer);check_gl_error();
+
+            // Check if complete
+            if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+            {
+                MessageBox(NULL, L"Frame buffer error!", L"", MB_OK);
+                std::exit(0);
+            }
 
             // Unbind buffer
             glBindTexture(GL_TEXTURE_2D, 0);check_gl_error();
@@ -517,7 +528,7 @@ namespace hooks
         return original_func();
     }
 
-	void eatemove(float frametime, usercmd_t *cmd, int active)
+	void hk_cl_create_move(float frametime, usercmd_t *cmd, int active)
 	{
         static auto& g = globals::instance();
 		g.original_client_funcs->pCL_CreateMove(frametime, cmd, active);
@@ -770,6 +781,9 @@ namespace hooks
 
 	void init()
 	{
+        AllocConsole();
+        freopen("CONOUT$", "w", stdout);
+
         static auto& g = globals::instance();
 		auto client = GetModuleHandle(L"client.dll");
         auto opengl_dll = GetModuleHandle(L"opengl32.dll");
@@ -803,7 +817,7 @@ namespace hooks
         g.engine_funcs->Con_Printf("Globals: 0x%X, 0x%X\n", globals2, weapons_post_think_abs);
 
         // Hook client funcs
-		g.client_funcs->pCL_CreateMove = eatemove;
+		g.client_funcs->pCL_CreateMove = hk_cl_create_move;
 		g.client_funcs->pClientMove = hk_hud_clientmove;
         g.client_funcs->pCalcRefdef = hk_calc_ref_def;
         g.client_funcs->pPostRunCmd = hk_post_run_cmd;

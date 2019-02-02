@@ -10,6 +10,8 @@ namespace ImGui
     {
         static auto& g = globals::instance();
 
+        bool found_key = false;
+
         g.catch_keys = true;
         auto custom_key_name = custom::get_key_name(current_key);
         if (custom_key_name == NULL)
@@ -33,6 +35,7 @@ namespace ImGui
                 ImGui::CloseCurrentPopup();
                 g.catch_keys = false;
                 g.captured_key = -1;
+                found_key = true;
             }
             else
             {
@@ -46,5 +49,7 @@ namespace ImGui
 
         std::string label_id = "###" + std::string(label);
         ImGui::LabelText(label_id.c_str(), label);
+
+        return found_key;
     }
 }

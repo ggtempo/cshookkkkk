@@ -24,7 +24,6 @@ namespace features
                 case aa_mode_pitch::down_unsafe:
                     new_view.x = -179.0f;
                     correct_view = false;
-                    //move.x *= -1;
                     break;
 
                 case aa_mode_pitch::up_emotion:
@@ -34,7 +33,6 @@ namespace features
                 case aa_mode_pitch::up_unsafe:
                     new_view.x = 179.0f;
                     correct_view = false;
-                    //move.x *= -1;
                     break;
             }
 

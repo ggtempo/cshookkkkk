@@ -18,7 +18,7 @@ namespace features
             ((g.player_data[entity->index].team != g.local_player_data.team) || this->chams_team)   &&
             (entity->index != local->index) && (entity != local))
         {
-            glDepthRange(0.05, 0.1);check_gl_error();
+            glDepthRange(0.0, 0.1);check_gl_error();
 
             if (this->chams_mode == chams_modes::CHAMS_NOTEXTURE)
             {
@@ -60,19 +60,21 @@ namespace features
 
             glEnable(GL_DEPTH_TEST);check_gl_error();
             glEnable(GL_TEXTURE_2D);check_gl_error();
-            glDepthRange(0.1, 1);check_gl_error();
+            glDepthRange(0.1, 1.0);check_gl_error();
         }
         else if ((entity == local) && (entity->index == local->index) || (entity == g.engine_funcs->GetViewModel()))
         {
             // Draw our player on top of everything
-            glDepthRange(0, 0.05);check_gl_error();
+            glDepthRange(0.0, 0.1);check_gl_error();
             ecx->StudioRenderFinal();
             glDepthRange(0.1, 1.0);check_gl_error();
         }
         else
         {
             //ecx->StudioRenderFinal( );
+            glDepthRange(0.0, 1.0);
             original_func(ecx);
+            glDepthRange(0.0, 1.0);
         }
     }
 
