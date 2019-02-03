@@ -8,6 +8,9 @@
 #include <Windows.h>
 #include <gl/GL.h>
 
+#include <locale>
+#include <codecvt>
+
 #include "HLSDK/Studio.hpp"
 
 #include "Memory/memory.hpp"
@@ -26,6 +29,11 @@ void ThreadMain()
 
 	auto parentProcess = GetModuleHandle(NULL);
 	g.main_window = utils::get_main_window(module_info->pid);
+    auto base_path = utils::get_base_path(module_info->instance);
+    auto full_path = ((base_path) ? *base_path : std::wstring(L"%USERPROFILE%")) + std::wstring(L"\\CSHook.ini");
+    std::string base_path_str = std::wstring_convert<std::codecvt_utf8<wchar_t>>().to_bytes(full_path);
+    // Either the base path or Home path
+    g.base_path = base_path_str;
 
     hooks::init();
 }

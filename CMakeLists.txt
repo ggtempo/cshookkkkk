@@ -36,7 +36,8 @@ find_package(OpenGL)                                            # OpenGL
 set(
     HEADER_ONLY_LIBS                                            # Libraries that require only headers
 
-    "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/glad/include"     # GLAD (OpenGL loader)
+    "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/glad/include"      # GLAD (OpenGL loader)
+    "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/inireader/include" # INIReader (.ini file parsing)
 #    "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/sol2/include"     # Sol2 (Lua)
 #    "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/glm/include"      # GLM
 #    "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/stb/include"      # STB image and truetype

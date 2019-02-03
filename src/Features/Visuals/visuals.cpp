@@ -16,7 +16,8 @@ namespace features
         if (this->chams                                                                             &&
             (g.player_data[entity->index].alive && !g.player_data[entity->index].dormant)           &&
             ((g.player_data[entity->index].team != g.local_player_data.team) || this->chams_team)   &&
-            (entity->index != local->index) && (entity != local))
+            (entity->index != local->index) && (entity != local)                                    &&                    
+            (!g.hide_on_screenshot || !(g.taking_screenshot || g.taking_snapshot)))
         {
             glDepthRange(0.0, 0.1);check_gl_error();
 
@@ -33,7 +34,6 @@ namespace features
 
 
             glDisable(GL_TEXTURE_2D);check_gl_error();
-            //glEnable(GL_COLORS);check_gl_error();
             g.engine_studio->SetForceFaceFlags( STUDIO_NF_CHROME );
             g.engine_funcs->pTriAPI->RenderMode( render_modes::kRenderNormal );
 
@@ -52,7 +52,6 @@ namespace features
 
             ecx->StudioRenderFinal();
 
-            //glDisable(GL_COLORS);check_gl_error();
             glDisable(GL_BLEND);check_gl_error();
             glDisable(GL_DEPTH_TEST);check_gl_error();
 
@@ -72,9 +71,9 @@ namespace features
         else
         {
             //ecx->StudioRenderFinal( );
-            glDepthRange(0.0, 1.0);
+            glDepthRange(0.0, 1.0);check_gl_error();
             original_func(ecx);
-            glDepthRange(0.0, 1.0);
+            glDepthRange(0.0, 1.0);check_gl_error();
         }
     }
 

@@ -108,17 +108,13 @@ namespace hooks
             // Debug OpenGL Stuff
             auto version = reinterpret_cast<const char*>(glGetString(GL_VERSION));check_gl_error();
             auto extensions = reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS));check_gl_error();
-            
-            double depth_range[2];
-            glGetDoublev(GL_DEPTH_RANGE, depth_range);
-
-            g.engine_funcs->Con_Printf("Range: %f %f\n", depth_range[0], depth_range[1]);
 
             IMGUI_CHECKVERSION();check_gl_error();
             ImGui::CreateContext();check_gl_error();
 
             ImGuiIO& io = ImGui::GetIO();check_gl_error();
             auto& style = ImGui::GetStyle();check_gl_error();
+            io.IniFilename = g.base_path.c_str();
 
             io.MouseDrawCursor = false;
 
@@ -195,111 +191,115 @@ namespace hooks
         ImGui_Impl_NewFrame();
         ImGui::NewFrame();
 
-        if (g.menu_enabled && ImGui::BeginMainMenuBar())
+        if (!g.hide_on_screenshot || !(g.taking_screenshot || g.taking_snapshot))
         {
-            SYSTEMTIME time = {};
-            GetLocalTime(&time);
-
-            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0, 0.0));
-
-            auto title_bar_size = ImGui::GetWindowSize();
-
-            ImGui::SameLine();
-
-            ImGui::SetCursorPos(ImVec2(0.0, 0.0));
-            if (ImGui::Button("    Aimbot    "))
-                g.aimbot_menu_enabled = !g.aimbot_menu_enabled;
-
-            ImGui::SameLine();
-            ImGui::Separator();
-
-            if (ImGui::Button("    Trigger   "))
-                g.trigger_menu_enabled = !g.trigger_menu_enabled;
-
-            ImGui::SameLine();
-            ImGui::Separator();
-
-            if (ImGui::Button("      ESP     "))
-                g.esp_menu_enabled = !g.esp_menu_enabled;
-
-            ImGui::SameLine();
-            ImGui::Separator();
-
-            if (ImGui::Button("   Anti-Aim   "))
-                g.anti_aim_menu_enabled = !g.anti_aim_menu_enabled;
-
-            ImGui::SameLine();
-            ImGui::Separator();
-
-            if (ImGui::Button("     MISC     "))
-                g.misc_menu_enabled = !g.misc_menu_enabled;
-
-            ImGui::SameLine();
-            ImGui::Separator();
-
-            float right_offset = 10;
-
+            if (g.menu_enabled && ImGui::BeginMainMenuBar())
             {
-                auto size = ImGui::CalcTextSize("00:00:00");
-                right_offset += size.x;
-                ImGui::SetCursorPos(ImVec2(title_bar_size.x - right_offset, 0));
-                ImGui::Text("%02d:%02d:%0-2d", time.wHour, time.wMinute, time.wSecond);
+                SYSTEMTIME time = {};
+                GetLocalTime(&time);
 
-                right_offset += 110;
+                ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0, 0.0));
+
+                auto title_bar_size = ImGui::GetWindowSize();
+
+                ImGui::SameLine();
+
+                ImGui::SetCursorPos(ImVec2(0.0, 0.0));
+                if (ImGui::Button("    Aimbot    "))
+                    g.aimbot_menu_enabled = !g.aimbot_menu_enabled;
+
+                ImGui::SameLine();
+                ImGui::Separator();
+
+                if (ImGui::Button("    Trigger   "))
+                    g.trigger_menu_enabled = !g.trigger_menu_enabled;
+
+                ImGui::SameLine();
+                ImGui::Separator();
+
+                if (ImGui::Button("      ESP     "))
+                    g.esp_menu_enabled = !g.esp_menu_enabled;
+
+                ImGui::SameLine();
+                ImGui::Separator();
+
+                if (ImGui::Button("   Anti-Aim   "))
+                    g.anti_aim_menu_enabled = !g.anti_aim_menu_enabled;
+
+                ImGui::SameLine();
+                ImGui::Separator();
+
+                if (ImGui::Button("     MISC     "))
+                    g.misc_menu_enabled = !g.misc_menu_enabled;
+
+                ImGui::SameLine();
+                ImGui::Separator();
+
+                float right_offset = 10;
+
+                {
+                    auto size = ImGui::CalcTextSize("00:00:00");
+                    right_offset += size.x;
+                    ImGui::SetCursorPos(ImVec2(title_bar_size.x - right_offset, 0));
+                    ImGui::Text("%02d:%02d:%0-2d", time.wHour, time.wMinute, time.wSecond);
+
+                    right_offset += 110;
+                }
+
+                {
+                    auto size = ImGui::CalcTextSize("CSHook by Dminik");
+                    
+                    ImGui::SetCursorPos(ImVec2((title_bar_size.x / 2) - (size.x / 2), 0));
+                    ImGui::Text("CSHook by Dminik");
+                }
+
+                ImGui::PopStyleVar();
+
+                ImGui::EndMainMenuBar();
             }
 
+            if (g.aimbot_menu_enabled && g.menu_enabled)
             {
-                auto size = ImGui::CalcTextSize("CSHook by Dminik");
-                
-                ImGui::SetCursorPos(ImVec2((title_bar_size.x / 2) - (size.x / 2), 0));
-                ImGui::Text("CSHook by Dminik");
+                features::aimbot::instance().show_menu();
             }
 
-            ImGui::PopStyleVar();
+            if (g.trigger_menu_enabled && g.menu_enabled)
+            {
+                features::triggerbot::instance().show_menu();
+            }
 
-            ImGui::EndMainMenuBar();
-        }
+            if (g.esp_menu_enabled && g.menu_enabled)
+            {
+                features::visuals::instance().show_menu();
+            }
 
-        if (g.aimbot_menu_enabled && g.menu_enabled)
-        {
-            features::aimbot::instance().show_menu();
-        }
+            if (g.anti_aim_menu_enabled && g.menu_enabled)
+            {
+                features::anti_aim::instance().show_menu();
+            }
 
-        if (g.trigger_menu_enabled && g.menu_enabled)
-        {
-            features::triggerbot::instance().show_menu();
-        }
+            if (g.misc_menu_enabled && g.menu_enabled)
+            {
+                ImGui::Begin("Miscellaneous");
+                    ImGui::Checkbox("Bhop enabled", &g.bhop_enabled);
+                    ImGui::Checkbox("Visual no recoil", &g.no_visual_recoil);
+                    ImGui::Checkbox("No recoil", &g.no_recoil);
+                    ImGui::Checkbox("No spread", &g.no_spread);
+                    ImGui::Checkbox("Mirror cam", &g.mirror_cam_enabled);
+                    ImGui::Checkbox("Third person", &g.third_person_enabled);
+                    ImGui::Checkbox("Hide on screenshots", &g.hide_on_screenshot);
+                ImGui::End();
+            }
 
-        if (g.esp_menu_enabled && g.menu_enabled)
-        {
-            features::visuals::instance().show_menu();
-        }
-
-        if (g.anti_aim_menu_enabled && g.menu_enabled)
-        {
-            features::anti_aim::instance().show_menu();
-        }
-
-        if (g.misc_menu_enabled && g.menu_enabled)
-        {
-            ImGui::Begin("Miscellaneous");
-                ImGui::Checkbox("Bhop enabled", &g.bhop_enabled);
-                ImGui::Checkbox("Visual no recoil", &g.no_visual_recoil);
-                ImGui::Checkbox("No recoil", &g.no_recoil);
-                ImGui::Checkbox("No spread", &g.no_spread);
-                ImGui::Checkbox("Mirror cam", &g.mirror_cam_enabled);
-                ImGui::Checkbox("Third person", &g.third_person_enabled);
-            ImGui::End();
-        }
-
-        if (g.mirror_cam_enabled)
-        {
-            ImGui::Begin("Test");
-                auto pos = ImGui::GetCursorScreenPos();
-                auto size = ImGui::GetContentRegionMax();
-                auto bottom_right = ImVec2(pos.x + size.x, pos.y + size.y);
-                ImGui::GetWindowDrawList()->AddImage((void*)g.mirrorcam_texture, pos, bottom_right, ImVec2(0, 1), ImVec2(1, 0));
-            ImGui::End();
+            if (g.mirror_cam_enabled)
+            {
+                ImGui::Begin("Test");
+                    auto pos = ImGui::GetCursorScreenPos();
+                    auto size = ImGui::GetContentRegionMax();
+                    auto bottom_right = ImVec2(pos.x + size.x, pos.y + size.y);
+                    ImGui::GetWindowDrawList()->AddImage((void*)g.mirrorcam_texture, pos, bottom_right, ImVec2(0, 1), ImVec2(1, 0));
+                ImGui::End();
+            }
         }
 
         ImGui::Render();
@@ -314,6 +314,18 @@ namespace hooks
         glPopMatrix();check_gl_error();
         glMatrixMode(GL_PROJECTION);check_gl_error();
         glPopMatrix();check_gl_error();
+
+        if (g.taking_screenshot)
+        {
+            g.taking_screenshot = false;
+            reinterpret_cast<command_t>(g.original_screenshot)();
+        }
+
+        if (g.taking_snapshot)
+        {
+            g.taking_snapshot = false;
+            reinterpret_cast<command_t>(g.original_snapshot)();
+        }
 
         return original_func(hDc);
     }
@@ -568,25 +580,6 @@ namespace hooks
         cmd->forwardmove = new_move.x;
         cmd->sidemove = new_move.y;
         cmd->upmove = new_move.z;
-
-        /*if (g.third_person_enabled && g.local_player_data.alive)
-        {
-            g.engine_funcs->pfnGetCvarPointer("chase_active")->value = 1;
-            g.engine_funcs->pfnGetCvarPointer("r_drawviewmodel")->value = 0;
-            //g.engine_funcs->pfnGetCvarPointer("chase_back")->value = 500;
-        }
-        else
-        {
-            g.engine_funcs->pfnGetCvarPointer("chase_active")->value = 0;
-            g.engine_funcs->pfnGetCvarPointer("r_drawviewmodel")->value = 1;
-            //g.engine_funcs->pfnGetCvarPointer("chase_back")->value = 100;
-        }*/
-        
-
-        /*if (GetAsyncKeyState(VK_MENU))
-        {
-            *g.engine_time += frametime * 5.0 / 3.0;
-        }*/
 	}
 
 	void hk_hud_clientmove(playermove_t* ppmove, int server)
@@ -695,25 +688,13 @@ namespace hooks
 
         original_func(params);
 
-        if (g.third_person_enabled)
+        if (g.third_person_enabled && (!g.hide_on_screenshot || !(g.taking_screenshot || g.taking_snapshot)))
         {
-            math::vec3 offset = {0, 0, 0};
-
-            offset += (math::vec3(params->right) * 0);
-            offset += (math::vec3(params->up) * 15);
-            offset += (math::vec3(params->forward) * - 100);
-
-            params->vieworg += offset;
+            // We push the view origin by 100 units back and 15 units up
+            params->vieworg += (math::vec3(params->right) * 0);
+            params->vieworg += (math::vec3(params->up) * 15);
+            params->vieworg += (math::vec3(params->forward) * - 100);
         }
-
-        /*if (!g.mirror_cam_enabled)
-        {
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);check_gl_error();
-            glDrawBuffer(GL_BACK);check_gl_error();
-
-            //features::removals::instance().calc_ref_def(params);
-            return;
-        }*/
         
         if (g.mirror_cam_enabled)
         {
@@ -759,10 +740,7 @@ namespace hooks
         uint8_t status = READ_BYTE();
 
         if ((index >= 0) && (index < g.engine_funcs->GetMaxClients()) && (index != g.engine_funcs->GetLocalPlayer()->index))
-        {
-            /*if (g.player_data[index].alive && (status & 1))
-                g.engine_funcs->Con_Printf("Player %i just died!\n");*/
-            
+        {           
             g.player_data[index].alive = !(status & 1);
         }
         else if (index == g.engine_funcs->GetLocalPlayer()->index)
@@ -776,7 +754,43 @@ namespace hooks
     bool hk_is_third_person()
     {
         static auto& g = globals::instance();
-        return g.third_person_enabled;
+        return g.third_person_enabled && (!g.hide_on_screenshot || !(g.taking_screenshot || g.taking_snapshot));
+    }
+
+    void hk_screenshot()
+    {
+        static auto& g = globals::instance();
+        g.taking_screenshot = true;
+    }
+
+    void hk_snapshot()
+    {
+        static auto& g = globals::instance();
+        g.taking_snapshot = true;
+    }
+
+    void hook_screenshot()
+    {
+        static auto& g = globals::instance();
+        auto cmd = g.engine_funcs->GetFirstCmdFunctionHandle();
+
+        while (cmd)
+        {
+            g.engine_funcs->Con_Printf("CMD: %s \n", cmd->name);
+            if (std::strcmp(cmd->name, "screenshot") == 0)
+            {
+                g.original_screenshot = reinterpret_cast<uintptr_t>(cmd->function);
+                cmd->function = hk_screenshot;
+            }
+
+            if (std::strcmp(cmd->name, "snapshot") == 0)
+            {
+                g.original_snapshot = reinterpret_cast<uintptr_t>(cmd->function);
+                cmd->function = hk_snapshot;
+            }
+
+            cmd = cmd->next;
+        }
     }
 
 	void init()
@@ -880,6 +894,8 @@ namespace hooks
             // Go to the next one
             element = element->pNext;
         }
+
+        hook_screenshot();
 	}
 
     cl_enginefunc_t* get_engine_funcs()

@@ -31,13 +31,10 @@ class globals
             this->third_person_enabled = false;
 
             this->no_spread = false;
-            
-            
-            this->render_mode = render_modes::kRenderNormal;
-            this->render_fx = render_effects::kRenderFxNone;
-            this->s_nf = STUDIO_NF_CHROME;
-            this->fx_amt = 255;
-            this->clr = {};
+
+            this->taking_screenshot = false;
+            this->taking_snapshot = false;
+            this->hide_on_screenshot = false;
 
             this->studio_model_renderer_hook = nullptr;
 
@@ -46,7 +43,7 @@ class globals
             this->catch_keys = false;
             this->captured_key = -1;
 
-            this->anti_aim_pitch_override = false;
+
 
 
             this->mirrorcam_buffer = 0;
@@ -82,16 +79,12 @@ class globals
         bool mirror_cam_enabled;
         bool third_person_enabled;
 
-        int render_mode;
-        int render_fx;
-        int s_nf;
-        int fx_amt;
-        vec3_t clr;
+        bool hide_on_screenshot;
+        bool taking_screenshot;
+        bool taking_snapshot;
 
-        int trace_mode = 0;
-        int trace_flags = 0;
-
-        bool anti_aim_pitch_override;
+        // Module base path
+        std::string base_path;
 
         // Hooks
         memory::vmt_hook* studio_model_renderer_hook;
@@ -108,6 +101,9 @@ class globals
         uintptr_t           original_cur_weapon;
         uintptr_t           original_score_attrib;
         uintptr_t           original_studio_check_bbox;
+
+        uintptr_t           original_screenshot;
+        uintptr_t           original_snapshot;
 
         globalvars_t*       game_globals;
         globalvars_t**      game_globals_2;
