@@ -191,6 +191,9 @@ namespace hooks
         ImGui_Impl_NewFrame();
         ImGui::NewFrame();
 
+        // Render ESP
+        features::visuals::instance().swap_buffers();
+
         if (!g.hide_on_screenshot || !(g.taking_screenshot || g.taking_snapshot))
         {
             if (g.menu_enabled && ImGui::BeginMainMenuBar())
@@ -511,6 +514,10 @@ namespace hooks
                 updated = false;*/
 
             g.player_data[entity->index].dormant = !updated;
+
+            // Update position and velocity
+            g.player_data[entity->index].origin = entity->origin;
+            g.player_data[entity->index].velocity = entity->curstate.velocity;
         }
     }
 
@@ -715,7 +722,12 @@ namespace hooks
             {
                 if(g.local_player_data.alive && g.engine_funcs->GetLocalPlayer()->curstate.solid != SOLID_NOT)
                 {
-                    // Normal view - for some reason switched
+                    // Normal view
+                    // The VGUI hud is drawn after all of the views
+                    // Because of that, nextView 0 ends up with no HUD
+                    // We instead render the view 1 into the main framebuffer
+                    // and render view 0 (technically the main view) to the mirror_cam framebuffer
+                    // TODO: Hook vgui and switch the framebuffer to the default one
                     glBindFramebuffer(GL_FRAMEBUFFER, 0);check_gl_error();
                     glDrawBuffer(GL_BACK);check_gl_error();
 
@@ -806,6 +818,19 @@ namespace hooks
         }
     }
 
+    int hk_hud_redraw(float time, int intermission)
+    {
+        typedef int(*fnHudRedraw)(float, int);
+        static auto& g = globals::instance();
+        static auto original_func = reinterpret_cast<fnHudRedraw>(g.original_client_funcs->pHudRedrawFunc);
+
+        // Switch to the original buffer for drawing the HUD
+        //glBindFramebuffer(GL_FRAMEBUFFER, 0);check_gl_error();
+        //glDrawBuffer(GL_BACK);check_gl_error();
+
+        return original_func(time, intermission);
+    }
+
 	void init()
 	{
         AllocConsole();
@@ -848,6 +873,7 @@ namespace hooks
 		g.client_funcs->pClientMove = hk_hud_clientmove;
         g.client_funcs->pCalcRefdef = hk_calc_ref_def;
         g.client_funcs->pPostRunCmd = hk_post_run_cmd;
+        g.client_funcs->pHudRedrawFunc = hk_hud_redraw;
 
         uintptr_t wgl_swap_buffers = reinterpret_cast<uintptr_t>(GetProcAddress(opengl_dll, "wglSwapBuffers"));
         g.original_wgl_swap_buffers = reinterpret_cast<uintptr_t>(memory::hook_func2(wgl_swap_buffers, reinterpret_cast<uintptr_t>(hk_wgl_swap_buffers), 5));

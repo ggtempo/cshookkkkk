@@ -161,13 +161,14 @@ typedef void(*HUD_CL_CREATEMOVE_FUNC)(float frametime, usercmd_t *cmd, int activ
 typedef void(*HUD_CLIENTMOVE_FUNC)(struct playermove_s *ppmove, qboolean server);
 typedef void(*V_CALCREFDEF)(ref_params_s *pparams);
 typedef void(*HUD_POSTRUNCMD)( struct local_state_s *from, struct local_state_s *to, struct usercmd_s *cmd, int runfuncs, double time, unsigned int random_seed );
+typedef int(*HUD_REDRAW)(float, int);
 
 typedef struct
 {
 	void*	pInitFunc;
 	void*	pHudInitFunc;
 	void*	pHudVidInitFunc;
-	void*	pHudRedrawFunc;
+	HUD_REDRAW	pHudRedrawFunc;
 	void*	pHudUpdateClientDataFunc;
 	void*	pHudResetFunc;
 	HUD_CLIENTMOVE_FUNC	pClientMove;

@@ -533,6 +533,7 @@ namespace custom
         player_team team = player_team::UNKNOWN;
         weapon_data weapon;
 
+        math::vec3 origin;
         math::vec3 velocity;
 
         std::unordered_map<int, angled_bbox> hitboxes;

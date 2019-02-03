@@ -30,6 +30,7 @@ namespace features
             }
 
             void studio_render_model(CStudioModelRenderer* ecx);
+            void swap_buffers();
             void show_menu();
 
         private:
@@ -41,8 +42,12 @@ namespace features
 
         private:
             bool chams;
+            bool chams_through_walls;
             bool chams_team;
             chams_modes chams_mode;
+
+            bool box_esp;
+            bool box_esp_team;
 
             custom::color4f team_color;
             custom::color4f enemy_color;

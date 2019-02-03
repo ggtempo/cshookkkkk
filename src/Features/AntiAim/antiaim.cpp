@@ -65,6 +65,8 @@ namespace features
             // Correct them
             if (correct_view)
                 cmd->viewangles = new_view.normalize_angle();
+            else
+                cmd->viewangles = new_view;
         }
     }
 
