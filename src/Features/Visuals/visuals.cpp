@@ -59,7 +59,7 @@ namespace features
 
             glEnable(GL_DEPTH_TEST);check_gl_error();
             glEnable(GL_TEXTURE_2D);check_gl_error();
-            glDepthRange(0.1, 1.0);check_gl_error();
+            glDepthRange(0.0, 1.0);check_gl_error();
         }
         else if ((entity == local) && (entity->index == local->index) || (entity == g.engine_funcs->GetViewModel()))
         {

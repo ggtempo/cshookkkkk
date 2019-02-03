@@ -690,10 +690,23 @@ namespace hooks
 
         if (g.third_person_enabled && (!g.hide_on_screenshot || !(g.taking_screenshot || g.taking_snapshot)))
         {
-            // We push the view origin by 100 units back and 15 units up
+            // We push the view origin by 15 units up
             params->vieworg += (math::vec3(params->right) * 0);
             params->vieworg += (math::vec3(params->up) * 15);
-            params->vieworg += (math::vec3(params->forward) * - 100);
+
+            // Get the backwards vector
+            math::vec3 backwards = (math::vec3(params->forward) * - 1);
+
+            // Cast a ray from our player to 100 units behind him
+            pmtrace_t trace = {};
+            g.engine_funcs->pEventAPI->EV_SetTraceHull(2);
+            g.engine_funcs->pEventAPI->EV_PlayerTrace(params->vieworg, params->vieworg + (backwards * 100), PM_WORLD_ONLY, -1, &trace);
+
+            // Scale third person distance (100 units) by lenght of the ray (eg: we hit a wall halfway through => 0.5, we hit nothing => 1.0)
+            float distance = trace.fraction * 100;
+
+            // Move the view origin by distance units back
+            params->vieworg += backwards * distance;
         }
         
         if (g.mirror_cam_enabled)
