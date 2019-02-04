@@ -333,6 +333,29 @@ typedef struct vec3_s
             return *this;
         }
 
+        vec3_s& normalize_euler_angle()
+        {
+            while (this->x > 180)
+                this->x -= 360;
+
+            while (this->x < -180)
+                this->x += 360;
+
+            while (this->y > 180)
+                this->y -= 360;
+
+            while (this->y < -180)
+                this->y += 360;
+
+            while (this->z > 180)
+                this->z -= 360;
+
+            while (this->z < -180)
+                this->z += 360;
+
+            return *this;
+        }
+
         bool is_zero() const
         {
             return  this->x == 0.0 &&

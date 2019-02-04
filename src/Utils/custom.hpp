@@ -533,6 +533,8 @@ namespace custom
         player_team team = player_team::UNKNOWN;
         weapon_data weapon;
 
+        char* name;
+
         math::vec3 origin;
         math::vec3 velocity;
 

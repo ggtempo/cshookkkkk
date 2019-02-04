@@ -5,7 +5,9 @@ namespace features
 {
     void anti_aim::create_move(float frametime, usercmd_t *cmd, int active)
     {
-        if (this->enabled && !(cmd->buttons & IN_ATTACK))
+        static auto& g = globals::instance();
+
+        if (this->enabled && !(cmd->buttons & IN_ATTACK) && g.player_move->movetype != MOVETYPE_FLY)
         {
             static float angle = 0.0;
             auto view = cmd->viewangles;
@@ -109,7 +111,7 @@ namespace features
                     if (ImGui::IsItemActive() || ImGui::IsItemHovered())
                         ImGui::SetTooltip(pitch_modes[i].tooltip);  // If we are hovering over the option, display it's tooltip
 
-                    if (select)
+                    if (selected)
                         ImGui::SetItemDefaultFocus();   // Scroll to the currently selected otion
                 }
                 ImGui::EndCombo();
@@ -127,7 +129,7 @@ namespace features
                     if (ImGui::IsItemActive() || ImGui::IsItemHovered())
                         ImGui::SetTooltip(yaw_modes[i].tooltip);  // If we are hovering over the option, display it's tooltip
 
-                    if (select)
+                    if (selected)
                         ImGui::SetItemDefaultFocus();   // Scroll to the currently selected otion
                 }
                 ImGui::EndCombo();

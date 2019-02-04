@@ -20,6 +20,10 @@ namespace features
                 };
 
                 this->chams_mode = chams_modes::CHAMS_NORMAL;
+
+                this->box_esp = false;
+                this->box_esp_team = false;
+                this->name_esp = false;
             }
         
         public:
@@ -48,6 +52,7 @@ namespace features
 
             bool box_esp;
             bool box_esp_team;
+            bool name_esp;
 
             custom::color4f team_color;
             custom::color4f enemy_color;

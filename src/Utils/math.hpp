@@ -103,6 +103,37 @@ namespace math
 
                 return result;
             }
+
+            matrix3x4& angle_matrix(const math::vec3& angle)
+            {
+                float sp, sy, sr, cp, cy, cr, radx, rady, radz;
+
+                radx = angle.x * ( pi * 2 / 360 );
+                rady = angle.y * ( pi * 2 / 360 );
+                radz = angle.z * ( pi * 2 / 360 );
+
+                sp = std::sin(radx);
+                sy = std::sin(rady);
+                sr = std::sin(radz);
+
+                cp = std::cos(radx);
+                cy = std::cos(rady);
+                cr = std::cos(radz);
+
+                matrix[0][0] = cp * cy;
+                matrix[0][1] = cp * sy;
+                matrix[0][2] = -sp;
+                
+                matrix[1][0] = 1 * sr * sp * cy + 1 * cr * -sy;
+                matrix[1][1] = 1 * sr * sp * sy + 1 * cr * cy;
+                matrix[1][2] = 1 * sr * cp;
+                    
+                matrix[2][0] = cr * sp * cy + -sr * -sy;
+                matrix[2][1] = cr * sp * sy + -sr * cy;
+                matrix[2][2] = cr * cp;
+
+                return *this;
+            }
     };
 
     // Checks whenether a ray hits a axis-aligned bounding box

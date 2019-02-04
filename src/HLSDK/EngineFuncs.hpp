@@ -91,6 +91,20 @@ typedef struct triangleapi_s
 
 } triangleapi_t;
 
+typedef struct hud_player_info_s
+{
+	char *name;
+	short ping;
+	uint8_t thisplayer;
+
+	uint8_t spectator;
+	uint8_t packetloss;
+
+	char *model;
+	short topcolor;
+	short bottomcolor;
+
+} hud_player_info_t;
 
 typedef struct event_api_s
 {

@@ -283,14 +283,17 @@ namespace hooks
 
             if (g.misc_menu_enabled && g.menu_enabled)
             {
-                ImGui::Begin("Miscellaneous");
-                    ImGui::Checkbox("Bhop enabled", &g.bhop_enabled);
-                    ImGui::Checkbox("Visual no recoil", &g.no_visual_recoil);
-                    ImGui::Checkbox("No recoil", &g.no_recoil);
-                    ImGui::Checkbox("No spread", &g.no_spread);
-                    ImGui::Checkbox("Mirror cam", &g.mirror_cam_enabled);
-                    ImGui::Checkbox("Third person", &g.third_person_enabled);
-                    ImGui::Checkbox("Hide on screenshots", &g.hide_on_screenshot);
+                if (ImGui::Begin("Miscellaneous"))
+                {
+                    ImGui::Columns(2);
+                        ImGui::Checkbox("Bhop enabled", &g.bhop_enabled);
+                        ImGui::Checkbox("Mirror cam", &g.mirror_cam_enabled);
+                        ImGui::Checkbox("Third person", &g.third_person_enabled);
+                        ImGui::Checkbox("Hide on screenshots", &g.hide_on_screenshot);
+                    ImGui::NextColumn();
+                        features::removals::instance().show_menu();
+                    ImGui::Columns(1);
+                }
                 ImGui::End();
             }
 
@@ -515,9 +518,18 @@ namespace hooks
 
             g.player_data[entity->index].dormant = !updated;
 
-            // Update position and velocity
-            g.player_data[entity->index].origin = entity->origin;
-            g.player_data[entity->index].velocity = entity->curstate.velocity;
+            if (updated)
+            {
+                // Update position and velocity
+                g.player_data[entity->index].origin = entity->origin;
+                g.player_data[entity->index].velocity = entity->curstate.velocity;
+
+                hud_player_info_t info = {};
+                g.engine_funcs->pfnGetPlayerInfo(entity->index, &info);
+
+                g.player_data[entity->index].name = info.name;
+            }
+            
         }
     }
 
@@ -560,7 +572,6 @@ namespace hooks
             return;
 
         auto original_angles = cmd->viewangles;
-        //auto original_move = vec3_s{cmd->forwardmove, cmd->sidemove, cmd->}
 
         update_visibility();
         update_status();
@@ -583,6 +594,24 @@ namespace hooks
         cmd->buttons &= ~IN_BACK;
         cmd->buttons &= ~IN_LEFT;
         cmd->buttons &= ~IN_RIGHT;
+
+        if (new_move.x > 0)
+        {
+            cmd->buttons |= IN_FORWARD;
+        }
+        else if (new_move.x < 0)
+        {
+            cmd->buttons |= IN_BACK;
+        }
+
+        if (new_move.y > 0)
+        {
+            cmd->buttons |= IN_LEFT;
+        }
+        else if (new_move.y < 0)
+        {
+            cmd->buttons |= IN_RIGHT;
+        }
 
         cmd->forwardmove = new_move.x;
         cmd->sidemove = new_move.y;
@@ -833,9 +862,6 @@ namespace hooks
 
 	void init()
 	{
-        AllocConsole();
-        freopen("CONOUT$", "w", stdout);
-
         static auto& g = globals::instance();
 		auto client = GetModuleHandle(L"client.dll");
         auto opengl_dll = GetModuleHandle(L"opengl32.dll");

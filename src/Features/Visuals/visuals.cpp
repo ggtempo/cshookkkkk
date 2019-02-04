@@ -126,8 +126,13 @@ namespace features
     void visuals::swap_buffers()
     {
         static auto& g = globals::instance();
+        // Get local player
+        auto local = g.engine_funcs->GetLocalPlayer();
 
         auto io = ImGui::GetIO();
+
+        if (!(!g.hide_on_screenshot || !(g.taking_screenshot || g.taking_snapshot)))
+            return; // Early exit when taking a screenshot
 
         // Creating a fullscreen overlay window with no inputs, title bar, etc..
         ImGui::SetNextWindowPos({0, 0});
@@ -144,100 +149,109 @@ namespace features
                                 ImGuiWindowFlags_NoCollapse     | ImGuiWindowFlags_NoDecoration             |
                                 ImGuiWindowFlags_NoTitleBar     | ImGuiWindowFlags_NoInputs                 |
                                 ImGuiWindowFlags_NoSavedSettings;
-
         
         // Only render the window while not taking a screenshot (if protecting against screenshots)
-        if (!g.hide_on_screenshot || !(g.taking_screenshot || g.taking_snapshot))
+        if (!ImGui::Begin("Kek", NULL, flags))
         {
-            if (ImGui::Begin("Kek", NULL, flags))
+            // Early exit for when the window is hidden (Not really possible)
+            ImGui::End();
+            ImGui::PopStyleVar(4);
+            return;
+        }
+
+        auto draw_list = ImGui::GetWindowDrawList();
+        if (!draw_list || !local || !this->box_esp)
+        {
+            // Early exit for when the window is hidden (Not really possible)
+            ImGui::End();
+            ImGui::PopStyleVar(4);
+            return;
+        }
+
+        // Go through each player
+        for (size_t i = 1; i < g.engine_funcs->GetMaxClients(); i++)
+        {
+            auto entity = g.engine_funcs->GetEntityByIndex(i);
+
+            // Check if entity is valid
+            if (!entity || !entity->index)
+                continue;
+
+            if ((g.player_data[entity->index].alive && !g.player_data[entity->index].dormant)           &&
+                ((g.player_data[entity->index].team != g.local_player_data.team) || this->box_esp_team) &&
+                (entity->index != local->index) && (entity != local))
             {
-                // Get the draw list
-                auto draw_list = ImGui::GetWindowDrawList();
-                if (draw_list)
+                // Get head hitbox 
+                auto& head_matrix = g.player_data[entity->index].hitboxes[hitbox_numbers::head].matrix;
+                auto& head_box = g.player_data[entity->index].hitboxes[hitbox_numbers::head].box;
+
+                // Find the center
+                auto head_bbmax = head_matrix.transform_vec3(head_box.bbmax);
+                auto head_bbmin = head_matrix.transform_vec3(head_box.bbmin);
+                auto head = (head_bbmin + head_bbmax) * 0.5;
+                head.z += 8;            // Offset by about 8 up, otherwise box will reach only halfway through the head
+
+                bool ducking = ((entity->curstate.maxs[2] - entity->curstate.mins[2]) < 54 ? true : false);
+                auto feet = entity->origin;
+                feet.z -= ducking ? 14 : 34;
+
+                math::vec3 head_screen = {};
+                math::vec3 feet_screen = {};
+
+                // Get screen coordinates (0 - 1)
+                auto head_result = g.engine_funcs->pTriAPI->WorldToScreen(head, head_screen);
+                auto feet_result = g.engine_funcs->pTriAPI->WorldToScreen(feet, feet_screen);
+                
+                // Project to actual screen coordinates (0 - resolution)
+                auto head_pos = screen_project(head_screen, {io.DisplaySize.x, io.DisplaySize.y, 0.0f});
+                auto feet_pos = screen_project(feet_screen, {io.DisplaySize.x, io.DisplaySize.y, 0.0f});
+
+                // If projection is out of our screen, skip this player
+                if (head_result || feet_result)
+                    continue;
+
+                // Find the difference between head and feet
+                constexpr float width_to_height_ratio = 0.4f;
+                auto height_difference = feet_pos.y - head_pos.y;
+                auto width = height_difference * width_to_height_ratio; // Box is about 0.4 times as wide as it is high
+
+                // Convert to screen coordinates
+                auto pos = ImVec2(head_pos.x - (width / 2), head_pos.y);
+                auto size = ImVec2(width, height_difference);
+
+                // Get corresponding color
+                ImColor color = ImColor(0.0f, 0.0f, 0.0f, 0.0f);
+
+                if (g.player_data[entity->index].team != g.local_player_data.team)
                 {
-                    // Get local player
-                    auto local = g.engine_funcs->GetLocalPlayer();
+                    color = ImColor(this->enemy_color.r, this->enemy_color.g, this->enemy_color.b, 1.0f);
+                }
+                else
+                {
+                    color = ImColor(this->team_color.r, this->team_color.g, this->team_color.b, 1.0f);
+                }
 
-                    if (local)
-                    {
-                        // Only loop through all of the players while esp is active
-                        if (this->box_esp)
-                        {
-                            // Go through each player
-                            for (size_t i = 1; i < g.engine_funcs->GetMaxClients(); i++)
-                            {
-                                auto entity = g.engine_funcs->GetEntityByIndex(i);
+                // Draw the box itself
+                draw_box_esp(draw_list, pos, size, color);
 
-                                // Check if entity is valid
-                                if (!entity || !entity->index || !local)
-                                    continue;
+                // If we should draw name
+                if (this->name_esp)
+                {
+                    // Get the size
+                    auto text_size = ImGui::CalcTextSize(g.player_data[entity->index].name);
 
-                                if ((g.player_data[entity->index].alive && !g.player_data[entity->index].dormant)           &&
-                                    ((g.player_data[entity->index].team != g.local_player_data.team) || this->box_esp_team) &&
-                                    (entity->index != local->index) && (entity != local))
-                                {
-                                    // Get head hitbox 
-                                    auto& head_matrix = g.player_data[entity->index].hitboxes[hitbox_numbers::head].matrix;
-                                    auto& head_box = g.player_data[entity->index].hitboxes[hitbox_numbers::head].box;
+                    // Get correct position
+                    auto bottom = ImVec2(pos.x + (size.x / 2), pos.y + size.y + 5);
+                    auto text_pos = ImVec2(bottom.x - (text_size.x / 2), bottom.y);
 
-                                    // Find the center
-                                    auto bbmax = head_matrix.transform_vec3(head_box.bbmax);
-                                    auto bbmin = head_matrix.transform_vec3(head_box.bbmin);
-                                    auto head = (bbmin + bbmax) * 0.5;
-                                    head.z += 8;            // Offset by about 8 up, otherwise box will reach only halfway through the head
-                                    auto feet = head;
-                                    feet.z -= 72;           // Offset feet by about 64 + 8 down, otherwise feet will be below the box
-
-
-                                    math::vec3 head_screen = {};
-                                    math::vec3 feet_screen = {};
-
-                                    // Get screen coordinates (0 - 1)
-                                    auto head_result = g.engine_funcs->pTriAPI->WorldToScreen(head, head_screen);
-                                    auto feet_result = g.engine_funcs->pTriAPI->WorldToScreen(feet, feet_screen);
-                                    
-                                    // Project to actual screen coordinates (0 - resolution)
-                                    auto head_pos = screen_project(head_screen, {io.DisplaySize.x, io.DisplaySize.y, 0.0f});
-                                    auto feet_pos = screen_project(feet_screen, {io.DisplaySize.x, io.DisplaySize.y, 0.0f});
-
-                                    // If projection is out of our screen, skip this player
-                                    if (head_result || feet_result)
-                                        continue;
-
-                                    // Find the difference between head and feet
-                                    constexpr float width_to_height_ratio = 0.4f;
-                                    auto height_difference = feet_pos.y - head_pos.y;
-                                    auto width = height_difference * width_to_height_ratio; // Box is about 0.4 times as wide as it is high
-
-                                    // Convert to screen coordinates
-                                    auto pos = ImVec2(head_pos.x - (width / 2), head_pos.y);
-                                    auto size = ImVec2(width, height_difference);
-
-                                    // Get corresponding color
-                                    ImColor color = ImColor(0.0f, 0.0f, 0.0f, 0.0f);
-
-                                    if (g.player_data[entity->index].team != g.local_player_data.team)
-                                    {
-                                        color = ImColor(this->enemy_color.r, this->enemy_color.g, this->enemy_color.b, 1.0f);
-                                    }
-                                    else
-                                    {
-                                        color = ImColor(this->team_color.r, this->team_color.g, this->team_color.b, 1.0f);
-                                    }
-
-                                    // Draw the box itself
-                                    draw_box_esp(draw_list, pos, size, color);
-                                }   
-                            }
-                        }
-                    }                    
+                    // Render the text
+                    draw_list->AddText(text_pos, ImColor(1.0f, 1.0f, 1.0f, 1.0f), g.player_data[entity->index].name);
                 }
             }
-            ImGui::End();
         }
-        
 
         // Restore default style
+        ImGui::End();
         ImGui::PopStyleVar(4);
     }
 
@@ -284,6 +298,7 @@ namespace features
             {
                 ImGui::Checkbox("Box ESP", &this->box_esp);
                 ImGui::Checkbox("ESP team", &this->box_esp_team);
+                ImGui::Checkbox("Name ESP", &this->name_esp);
             }
 
             ImGui::Columns(1);
