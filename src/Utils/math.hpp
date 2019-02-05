@@ -219,23 +219,15 @@ namespace math
         }
 
         
-        /*float angle_difference = (new_angles.y - original_angles.y);
+        float angle_difference = (new_angles.y - original_angles.y);
         float cs = std::cos(to_rad(angle_difference));
         float sn = std::sin(to_rad(angle_difference));
 
         result.x = (movement.x * cs) - (movement.y * sn);
-        result.y = (movement.x * sn) + (movement.y * cs);*/
+        result.y = (movement.x * sn) + (movement.y * cs);
 
-        float angle_difference = 0.0f;
-        if (new_angles.y < original_angles.y)
-            angle_difference = std::abs(new_angles.y - original_angles.y);
-        else
-            angle_difference = 360.0f - std::abs(original_angles.y - new_angles.y);
-
-        angle_difference = 360.0 - angle_difference;
-
-        result.x = std::cos(to_rad(angle_difference)) * movement.x + std::cos(to_rad(angle_difference + 90.0f)) * movement.y;
-        result.y = std::sin(to_rad(angle_difference)) * movement.x + std::sin(to_rad(angle_difference + 90.0f)) * movement.y;
+        if (new_angles.x > 89.0 || new_angles.x < -89.0)
+            result.x *= -1;
 
         return result;
     }

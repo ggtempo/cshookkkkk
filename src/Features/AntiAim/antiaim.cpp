@@ -20,7 +20,7 @@ namespace features
             switch (this->pitch_mode)
             {
                 case aa_mode_pitch::down_emotion:
-                    new_view.x = -89.0f;
+                    new_view.x = -88.0f;
                     break;
 
                 case aa_mode_pitch::down_unsafe:
@@ -29,7 +29,7 @@ namespace features
                     break;
 
                 case aa_mode_pitch::up_emotion:
-                    new_view.x = 89.0f;
+                    new_view.x = 88.0f;
                     break;
 
                 case aa_mode_pitch::up_unsafe:

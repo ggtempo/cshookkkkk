@@ -20,7 +20,7 @@ namespace custom
         UNKNOWN
     };
 
-    enum weapon_id
+    enum class weapon_id
     {
         weapon_invalid = 0,
         weapon_p228 = 1,
@@ -55,26 +55,48 @@ namespace custom
         weapon_p90
     };
 
+    enum class bullet_id
+    {
+        bullet_none = 0,
+        bullet_9mm,
+        bullet_mp5,
+        bullet_357,
+        bullet_buckshot,
+        bullet_crowbar,
+
+        bullet_m_9mm,
+        bullet_m_mp5,
+        bullet_m_12mm,
+
+        bullet_45acp,
+        bullet_338mag,
+        bullet_762mm,
+        bullet_556mm,
+        bullet_50ae,
+        bullet_57mm,
+        bullet_357sig
+    };
+
     inline bool is_knife(weapon_id id)
     {
-        return (id == weapon_knife);
+        return (id == weapon_id::weapon_knife);
     }
 
     inline bool is_grenade(weapon_id id)
     {
-        return ((id == weapon_hegrenade)    ||
-                (id == weapon_smokegrenade) ||
-                (id == weapon_flashbang));
+        return ((id == weapon_id::weapon_hegrenade)    ||
+                (id == weapon_id::weapon_smokegrenade) ||
+                (id == weapon_id::weapon_flashbang));
     }
 
     inline bool is_c4(weapon_id id)
     {
-        return (id == weapon_c4);
+        return (id == weapon_id::weapon_c4);
     }
 
     inline bool is_shield(weapon_id id)
     {
-        return (id == weapon_shield);
+        return (id == weapon_id::weapon_shield);
     }
 
     inline bool is_gun(weapon_id id)
@@ -83,15 +105,15 @@ namespace custom
                 !is_c4(id) &&
                 !is_grenade(id) && 
                 !is_shield(id) &&
-                (id != weapon_invalid) && 
-                (id <= weapon_p90);
+                (id != weapon_id::weapon_invalid) && 
+                (id <= weapon_id::weapon_p90);
     }
 
     inline float get_spread(weapon_id id, float accuracy, float velocity, bool grounded, bool ducking, float fov, int state)
     {
         switch (id)
         {
-            case weapon_ak47:
+            case weapon_id::weapon_ak47:
             {
                 if (grounded)
                 {
@@ -106,7 +128,7 @@ namespace custom
                 }
             }
 
-            case weapon_aug:
+            case weapon_id::weapon_aug:
             {
                 if (grounded)
                 {
@@ -124,7 +146,7 @@ namespace custom
                 
             }
 
-            case weapon_awp:
+            case weapon_id::weapon_awp:
             {
                 if (grounded)
                 {
@@ -143,7 +165,7 @@ namespace custom
                 }
             }
 
-            case weapon_deagle:
+            case weapon_id::weapon_deagle:
             {
                 if (grounded)
                 {
@@ -160,7 +182,7 @@ namespace custom
                 }
             }
 
-            case weapon_elite:
+            case weapon_id::weapon_elite:
             {
                 if (grounded)
                 {
@@ -177,7 +199,7 @@ namespace custom
                 }
             }
 
-            case weapon_famas:
+            case weapon_id::weapon_famas:
             {
                 if (grounded)
                 {
@@ -193,7 +215,7 @@ namespace custom
                 
             }
 
-            case weapon_fiveseven:
+            case weapon_id::weapon_fiveseven:
             {
                 if (grounded)
                 {
@@ -210,7 +232,7 @@ namespace custom
                 }
             }
 
-            case weapon_g3sg1:
+            case weapon_id::weapon_g3sg1:
             {
                 if (grounded)
                 {
@@ -228,7 +250,7 @@ namespace custom
                 
             }
 
-            case weapon_galil:
+            case weapon_id::weapon_galil:
             {
                 if (grounded)
                 {
@@ -244,7 +266,7 @@ namespace custom
                 
             }
 
-            case weapon_glock18:
+            case weapon_id::weapon_glock18:
             {
                 if (grounded)
                 {
@@ -262,7 +284,7 @@ namespace custom
                 
             }
 
-            case weapon_m249:
+            case weapon_id::weapon_m249:
             {
                 if (grounded)
                 {
@@ -280,11 +302,11 @@ namespace custom
             }
 
             // Shotgun
-            case weapon_m3:
+            case weapon_id::weapon_m3:
                 return 0.0;
 
             // Todo
-            case weapon_m4a1:
+            case weapon_id::weapon_m4a1:
             {
                 if (state & WPNSTATE_M4A1_SILENCED)
                 {
@@ -316,7 +338,7 @@ namespace custom
                 }
             }
 
-            case weapon_mac10:
+            case weapon_id::weapon_mac10:
             {
                 if (grounded)
                     return (0.03) * accuracy;
@@ -324,7 +346,7 @@ namespace custom
                     return (0.375) * accuracy;
             }
 
-            case weapon_mp5navy:
+            case weapon_id::weapon_mp5navy:
             {
                 if (grounded)
                     return (0.04) * accuracy;
@@ -332,7 +354,7 @@ namespace custom
                     return (0.2) * accuracy;
             }
 
-            case weapon_p228:
+            case weapon_id::weapon_p228:
             {
                 if (grounded)
                 {
@@ -350,7 +372,7 @@ namespace custom
                 
             }
 
-            case weapon_p90:
+            case weapon_id::weapon_p90:
             {
                 if (grounded)
                 {
@@ -366,7 +388,7 @@ namespace custom
                 
             }
 
-            case weapon_scout:
+            case weapon_id::weapon_scout:
             {
                 if (grounded)
                 {
@@ -383,9 +405,7 @@ namespace custom
                 }
             }
 
-            //
-
-            case weapon_sg550:
+            case weapon_id::weapon_sg550:
             {
                 if (grounded)
                 {
@@ -402,7 +422,7 @@ namespace custom
                 }
             }
 
-            case weapon_sg552:
+            case weapon_id::weapon_sg552:
             {
                 if (grounded)
                 {
@@ -419,7 +439,7 @@ namespace custom
                 }
             }
 
-            case weapon_tmp:
+            case weapon_id::weapon_tmp:
             {
                 if (grounded)
                 {
@@ -431,7 +451,7 @@ namespace custom
                 }
             }
 
-            case weapon_ump45:
+            case weapon_id::weapon_ump45:
             {
                 if (grounded)
                 {
@@ -444,7 +464,7 @@ namespace custom
             }
 
             // Todo
-            case weapon_usp:
+            case weapon_id::weapon_usp:
             {
                 if (state & WPNSTATE_USP_SILENCED)
                 {
@@ -481,12 +501,231 @@ namespace custom
             }
 
             // Shotgun
-            case weapon_xm1014:
+            case weapon_id::weapon_xm1014:
                 return 0.0;
 
             default:
                 // If we don't know the weapon's spread, just return the 0
                 return 0.0;
+        }
+    }
+
+    struct bullet_params
+    {
+        float penetration_range;
+        int penetration_power;
+    };
+
+    struct weapon_params
+    {
+        bullet_params bullet;
+        float range;
+        int max_penetrations;
+        int damage;
+
+        float damage_dropoff;
+        float armor_penetration;
+    };
+
+    inline bullet_params get_bullet_params(bullet_id id)
+    {
+        switch (id)
+        {
+            case bullet_id::bullet_9mm:
+            {
+                return {800, 21};
+            }
+
+            case bullet_id::bullet_45acp:
+            {
+                return {500, 15};
+            }
+
+            case bullet_id::bullet_50ae:
+            {
+                return {1000, 30};
+            }
+
+            case bullet_id::bullet_762mm:
+            {
+                return {5000, 39};
+            }
+
+            case bullet_id::bullet_556mm:
+            {
+                return {4000, 35};
+            }
+
+            case bullet_id::bullet_338mag:
+            {
+                return {8000, 45};
+            }
+
+            case bullet_id::bullet_57mm:
+            {
+                return {2000, 30};
+            }
+
+            case bullet_id::bullet_357sig:
+            {
+                return {800, 25};
+            }
+
+            default:
+            {
+                return {0, 0};
+            }
+        }
+    };
+
+    inline weapon_params get_weapon_params(weapon_id id)
+    {
+        switch (id)
+        {
+            case weapon_id::weapon_glock18:
+                return {
+                    get_bullet_params(bullet_id::bullet_9mm),
+                    4096, 2, 25, 0.75, 0.475
+                };
+            case weapon_id::weapon_usp:
+                return {
+                    get_bullet_params(bullet_id::bullet_45acp),
+                    8192, 2, 30, 0.79, 0.505 
+                };
+            case weapon_id::weapon_p228:
+                return {
+                    get_bullet_params(bullet_id::bullet_357sig),
+                    8192, 2, 32, 0.8, 0.7768
+                };
+            case weapon_id::weapon_deagle:
+                return {
+                    get_bullet_params(bullet_id::bullet_50ae),
+                    8192, 2, 54, 0.81, 0.932
+                };
+            case weapon_id::weapon_fiveseven:
+                return {
+                    get_bullet_params(bullet_id::bullet_57mm),
+                    8192, 2, 20, 0.885, 0.9115
+                };
+            case weapon_id::weapon_elite:
+                return {
+                    get_bullet_params(bullet_id::bullet_9mm),
+                    8192, 2, 36, 0.75, 0.525
+                };
+            case weapon_id::weapon_m3:
+                return {
+                    get_bullet_params(bullet_id::bullet_buckshot),
+                    8192, 1, 180, 1.0, 0.5
+                };
+            case weapon_id::weapon_xm1014:
+                return {
+                    get_bullet_params(bullet_id::bullet_buckshot),
+                    8192, 1, 120, 1.0, 0.8
+                };
+            case weapon_id::weapon_tmp:
+                return {
+                    get_bullet_params(bullet_id::bullet_9mm),
+                    8192, 2, 20, 0.85, 0.6
+                };
+            case weapon_id::weapon_mac10:
+                return {
+                    get_bullet_params(bullet_id::bullet_45acp),
+                    8192, 2, 29, 0.82, 0.575
+                };
+            case weapon_id::weapon_mp5navy:
+                return {
+                    get_bullet_params(bullet_id::bullet_9mm),
+                    8192, 2, 26, 0.84, 0.69 // No idea
+                };
+            case weapon_id::weapon_ump45:
+                return {
+                    get_bullet_params(bullet_id::bullet_45acp),
+                    8192, 2, 30, 0.82, 0.65
+                };
+            case weapon_id::weapon_p90:
+                return {
+                    get_bullet_params(bullet_id::bullet_57mm),
+                    8192, 2, 21, 0.885, 0.69
+                };
+            case weapon_id::weapon_m249:
+                return {
+                    get_bullet_params(bullet_id::bullet_556mm),
+                    8192, 2, 32, 0.97, 0.8
+                };
+            case weapon_id::weapon_galil:
+                return {
+                    get_bullet_params(bullet_id::bullet_556mm),
+                    8192, 2, 30, 0.98, 0.775
+                };
+            case weapon_id::weapon_famas:
+                return {
+                    get_bullet_params(bullet_id::bullet_556mm),
+                    8192, 2, 30, 0.96, 0.7
+                };
+            case weapon_id::weapon_ak47:
+                return {
+                    get_bullet_params(bullet_id::bullet_762mm),
+                    8192, 2, 36, 0.98, 0.775
+                };
+            case weapon_id::weapon_m4a1:
+                return {
+                    get_bullet_params(bullet_id::bullet_556mm),
+                    8192, 2, 32, 0.95, 0.7
+                };
+            case weapon_id::weapon_sg552:
+                return {
+                    get_bullet_params(bullet_id::bullet_556mm),
+                    8192, 2, 33, 0.955, 1.0
+                };
+            case weapon_id::weapon_aug:
+                return {
+                    get_bullet_params(bullet_id::bullet_556mm),
+                    8192, 2, 32, 0.96, 0.90
+                };
+            case weapon_id::weapon_scout:
+                return {
+                    get_bullet_params(bullet_id::bullet_762mm),
+                    8192, 2, 75, 0.98, 0.85
+                };
+            case weapon_id::weapon_awp:
+                return {
+                    get_bullet_params(bullet_id::bullet_338mag),
+                    8192, 3, 115, 0.99, 0.975
+                };
+            case weapon_id::weapon_g3sg1:
+                return {
+                    get_bullet_params(bullet_id::bullet_762mm),
+                    8192, 2, 80, 0.98, 0.825
+                };
+            case weapon_id::weapon_sg550:
+                return {
+                    get_bullet_params(bullet_id::bullet_556mm),
+                    8192, 2, 70, 0.98, 0.825
+                };
+        }
+    }
+
+    inline float get_hitbox_damage_modifier(hitbox_numbers id)
+    {
+        switch(id)
+        {
+            case hitbox_numbers::head:      // Head - 4x damage
+                return 4;
+            case hitbox_numbers::neck:
+            case hitbox_numbers::torso_top:
+            case hitbox_numbers::heart:
+            case hitbox_numbers::left_arm_bottom:
+            case hitbox_numbers::left_arm_top:
+            case hitbox_numbers::left_shoulder:
+            case hitbox_numbers::right_arm_bottom:
+            case hitbox_numbers::right_arm_top:
+            case hitbox_numbers::right_shoulder:
+                return 1;                   // Upper body - 1x damage
+            case hitbox_numbers::pelvis:
+            case hitbox_numbers::torso_bottom:
+                return 1.25;                // Lower body - 1.25x damage
+            default:
+                return 0.75;                // Legs - 0.75x damage
         }
     }
 

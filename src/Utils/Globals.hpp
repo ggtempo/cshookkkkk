@@ -7,8 +7,11 @@
 #include "../HLSDK/StudioStructures.hpp"
 #include "../HLSDK/Globals.hpp"
 #include "../HLSDK/Weapons.hpp"
+#include "../HLSDK/Textures.hpp"
 #include "custom.hpp"
 
+#include <iostream>
+#include <cstring>
 #include <unordered_set>
 #include <unordered_map>
 
@@ -38,9 +41,6 @@ class globals
 
             this->catch_keys = false;
             this->captured_key = -1;
-
-
-
 
             this->mirrorcam_buffer = 0;
             this->mirrorcam_texture = 0;
@@ -123,12 +123,209 @@ class globals
         unsigned int mirrorcam_depth_buffer;
 };
 
-inline CBasePlayerWeapon* get_weapon_info(int id)
+inline CBasePlayerWeapon* get_weapon_info(custom::weapon_id id)
 {
-    typedef CBasePlayerWeapon*(*fnGetWeaponInfo)(int id);
+    typedef CBasePlayerWeapon*(*fnGetWeaponInfo)(custom::weapon_id id);
     static auto& g = globals::instance();
     static auto original_func = reinterpret_cast<fnGetWeaponInfo>(g.get_weapon_info);
 
 
     return original_func(id);
+}
+
+inline pmtrace_t better_trace(math::vec3 start, math::vec3 end)
+{   
+    static auto& g = globals::instance();
+    math::vec3 direction = (end - start).normalize();
+
+    if (start == end)
+    {
+        pmtrace_t result = {};
+        result.endpos = end;
+        result.fraction = 1.0;
+    }
+
+    pmtrace_t result = {};
+    g.engine_funcs->pEventAPI->EV_SetTraceHull(2);
+    g.engine_funcs->pEventAPI->EV_PlayerTrace(start, end, PM_GLASS_IGNORE, -1, &result);
+
+    if (result.fraction == 0.0f && result.startsolid && !result.allsolid)
+    {
+        math::vec3 temp = start;
+
+        while (!result.allsolid && result.fraction == 0.0)
+        {
+            temp += direction;
+
+            g.engine_funcs->pEventAPI->EV_SetTraceHull(2);
+            g.engine_funcs->pEventAPI->EV_PlayerTrace(temp, end, PM_GLASS_IGNORE, -1, &result);
+        }
+
+        if (!result.allsolid && result.fraction != 1.0)
+        {
+            auto len1 = (end - start).length();
+            auto len2 = (result.endpos - start).length();
+
+            result.fraction = len2 / len1;
+            result.startsolid = 1;
+        }
+    }
+    
+    if (result.allsolid)
+        result.fraction = 1.0f;
+
+    return result;
+}
+
+inline char get_texture_type(pmtrace_t& trace, math::vec3& start, math::vec3& end)
+{
+    static auto& g = globals::instance();
+
+    auto index = g.engine_funcs->pEventAPI->EV_IndexFromTrace(&trace);
+
+    auto texture_type = 'C';
+
+    if (index >= 1 && index <= g.engine_funcs->GetMaxClients())
+    {
+        //Hit player
+        texture_type = CHAR_TEX_FLESH;
+    }
+    else
+    {
+        // Hit a wall, time for texture trace
+        auto texture_name = g.engine_funcs->pEventAPI->EV_TraceTexture(trace.ent, start, end);
+        if (texture_name)
+        {
+            char texture[64];
+            std::strncpy( texture, texture_name, sizeof( texture ) );
+            texture_name = texture;
+
+            bool sky = false;
+            if( !std::strcmp( texture_name, "sky" ) )
+            {
+                sky = true;
+            }
+
+            // strip leading '-0' or '+0~' or '{' or '!'
+            else if (*texture_name == '-' || *texture_name == '+')
+            {
+                texture_name += 2;
+            }
+            else if (*texture_name == '{' || *texture_name == '!' || *texture_name == '~' || *texture_name == ' ')
+            {
+                texture_name++;
+            }
+
+            // '}}'
+            char texture_name_final[64];
+            strncpy( texture_name_final, texture_name, sizeof(texture_name_final));
+            texture_name_final[ 16 ] = 0;
+
+            texture_type = PM_FindTextureType(texture_name_final);
+        }
+    }
+
+    return texture_type;
+}
+
+inline int get_estimated_damage(math::vec3 start, math::vec3 end, custom::weapon_id weapon_id, int target_id, int hitbox_id)
+{
+    static auto& g = globals::instance();
+
+    auto weapon = custom::get_weapon_params(weapon_id);
+
+    // Testing with ak
+    int penetration_power = weapon.bullet.penetration_power;
+    float penetration_distance = weapon.bullet.penetration_range;
+    int penetration_count = weapon.max_penetrations + 1;
+    float max_distance = weapon.range;
+    int estimated_damage = weapon.damage;
+
+    // Auto wall testing
+    vec3_t forward = (end - start).normalize();
+    vec3_t max_end = start + (forward * penetration_distance);
+
+    math::vec3 original_start = start;
+    math::vec3 original_end = end;
+
+    float damage_modifier = 0.5;
+
+    float remaining_distance = max_distance;
+    while (penetration_count != 0)
+    {
+        pmtrace_t trace = better_trace(start, max_end);
+        auto texture_type = get_texture_type(trace, start, max_end);
+
+        auto index = g.engine_funcs->pEventAPI->EV_IndexFromTrace(&trace);
+        if ((index && index == target_id) ||                                                        // We hit the target player
+            (trace.endpos - original_start).length() > (original_end - original_start).length())    // Or, we went behind him (if the server blocks player traces)
+        {
+            break;
+        }
+
+        float current_distance = trace.fraction * remaining_distance;
+
+        if (current_distance > penetration_distance)
+            return 0;                  // Bullet cannot go through
+        else
+            penetration_count--;       // Bullet made it through the object
+
+        // We have a hit
+        switch (texture_type)
+        {
+            case CHAR_TEX_METAL:
+                penetration_power *= 0.15;
+                damage_modifier = 0.2;
+                break;
+            case CHAR_TEX_CONCRETE:
+                penetration_power *= 0.25;
+                damage_modifier = 0.5;
+                break;
+            case CHAR_TEX_VENT:
+                penetration_power *= 0.5;
+                damage_modifier = 0.45;
+                break;
+            case CHAR_TEX_GRATE:
+                penetration_power *= 0.5;
+                damage_modifier = 0.4;
+                break;
+            case CHAR_TEX_TILE:
+                penetration_power *= 0.65;
+                damage_modifier = 0.3;
+                break;
+            case CHAR_TEX_COMPUTER:
+                penetration_power *= 0.4;
+                damage_modifier = 0.3;
+                break;
+            case CHAR_TEX_WOOD:
+                penetration_power *= 1;
+                damage_modifier = 0.6;
+                break;
+            default:
+                break;
+        }
+
+        remaining_distance = (remaining_distance - current_distance) * 0.5;
+
+        start = trace.endpos + (forward * penetration_power);
+        max_end = start + (forward * remaining_distance);
+        estimated_damage = (estimated_damage * damage_modifier);
+
+        if (penetration_count <= 0)
+        {
+            estimated_damage = 0;
+            break;
+        }
+    }
+
+    estimated_damage = estimated_damage * (std::pow(weapon.damage_dropoff, (int)((end - start).length() / 500)));    // Account for range
+    auto hitbox_damage_modifier = custom::get_hitbox_damage_modifier((hitbox_numbers)hitbox_id);
+    estimated_damage = estimated_damage * hitbox_damage_modifier;
+
+    // Getting armor/health values in this game is a bit retarder
+    // For now, we will just assume that the enemy player always has full armor
+
+    estimated_damage *= weapon.armor_penetration;
+
+    return estimated_damage;                           // We didn't hit the player / got stuck in the wall
 }

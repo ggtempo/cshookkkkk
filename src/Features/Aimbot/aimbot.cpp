@@ -33,6 +33,9 @@ namespace features
                                         .to_angles()            // Get the necessary angle
                                         .normalize_angle();     // Normalize the angle
 
+                //auto estimated_damage = get_estimated_damage(start, center, g.local_player_data.weapon.id, best_target.target_id, best_target.target_hitbox_id);
+                //g.engine_funcs->Con_Printf("Estimated damage on target %i is %i\n", best_target.target_id, estimated_damage);
+
                 if (smooth_enabled && !this->silent)
                 {
                     // If the aimbot needs to follow a smooth path
@@ -67,7 +70,7 @@ namespace features
                     {
                         auto new_forward = cmd->viewangles.to_vector() * 8912;
 
-                        if (hitbox.visible && (this->target_hitboxes[best_target.target_hitbox_id] || this->all_hitboxes) && key != hitbox_numbers::unknown)
+                        if ((hitbox.visible || this->auto_wall) && (this->target_hitboxes[best_target.target_hitbox_id] || this->all_hitboxes) && key != hitbox_numbers::unknown)
                         {
                             // If the hitbox is visible and should trigger shooting, check if our crosshair intersects it
                             if (auto result = math::ray_hits_rbbox(start, new_forward, hitbox.box, hitbox.matrix); result.hit)
@@ -92,6 +95,9 @@ namespace features
             ImGui::Checkbox("Aimbot enabled", &this->enabled);
             ImGui::Checkbox("Aim team", &this->team);
             ImGui::Checkbox("Silent", &this->silent);
+            ImGui::Checkbox("###Auto wall enabled", &this->auto_wall);
+            ImGui::SameLine();
+            ImGui::DragInt("Auto wall", &this->auto_wall_min_damage, 1, 1, 100);
             ImGui::Checkbox("Auto fire", &this->auto_fire);
 
             ImGui::Checkbox("###FOV Enabled", &this->fov_enabled);
@@ -197,7 +203,7 @@ namespace features
             for (auto& [key, hitbox] : g.player_data[entity->index].hitboxes)
             {
                 // Check if it fits our criteria
-                if (hitbox.visible && (this->target_hitboxes[key] || this->all_hitboxes) && key != hitbox_numbers::unknown)
+                if ((hitbox.visible || this->auto_wall) && (this->target_hitboxes[key] || this->all_hitboxes) && key != hitbox_numbers::unknown)
                 {
                     // Valid hitbox, get it's fov
                     vec3_t transformed_bbmin = hitbox.matrix.transform_vec3(hitbox.box.bbmin);
@@ -206,6 +212,11 @@ namespace features
 
                     float distance = (center - origin).length();
                     vec3_t needed_angle = (center - origin).normalize().to_angles().normalize_angle();
+
+                    // Only attempt to shoot through walls if the hitbox is 
+                    if (!hitbox.visible && this->auto_wall && get_estimated_damage(origin, center, g.local_player_data.weapon.id, entity->index, key) < this->auto_wall_min_damage)
+                        continue;
+                    
 
                     auto result = this->get_fov_to_target(angles, needed_angle, distance);
 

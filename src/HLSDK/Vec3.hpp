@@ -274,7 +274,7 @@ typedef struct vec3_s
             return result;
         }
 
-        void to_vectors(vec3_s& forward, vec3_s& right, vec3_s& up)
+        void to_vectors(vec3_s& forward, vec3_s& right, vec3_s& up) const
         {
             float sp, sy, sr, cp, cy, cr, radx, rady, radz;
 

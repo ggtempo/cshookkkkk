@@ -17,6 +17,7 @@
 #include "../Features/Aimbot/aimbot.hpp"
 #include "../Features/Removals/removals.hpp"
 #include "../HLSDK/Weapons.hpp"
+#include "../HLSDK/Textures.hpp"
 
 #include <iostream>
 
@@ -616,6 +617,10 @@ namespace hooks
         cmd->forwardmove = new_move.x;
         cmd->sidemove = new_move.y;
         cmd->upmove = new_move.z;
+
+        vec3_t start = g.player_move->origin + g.player_move->view_ofs;
+        vec3_t angles = cmd->viewangles;
+        vec3_t end = start + (angles.to_vector() * 8192);
 	}
 
 	void hk_hud_clientmove(playermove_t* ppmove, int server)
@@ -624,6 +629,8 @@ namespace hooks
 
 		g.original_client_funcs->pClientMove(ppmove, server);
 		std::memcpy(g.player_move, ppmove, sizeof(playermove_t));
+
+        PM_InitTextureTypes(ppmove);
 	}
 
     typedef int(*fnTeamInfo)(const char*, int, void*);
@@ -685,7 +692,7 @@ namespace hooks
         g.local_player_data.velocity = to->playerstate.velocity;
 
         // Update local weapon
-        auto info = get_weapon_info(to->client.m_iId);
+        auto info = get_weapon_info((custom::weapon_id)to->client.m_iId);
 
         g.local_player_data.weapon.id = static_cast<custom::weapon_id>(to->client.m_iId);
         g.local_player_data.weapon.clip = to->weapondata[to->client.m_iId].m_iClip;
@@ -860,8 +867,23 @@ namespace hooks
         return original_func(time, intermission);
     }
 
+    void hk_client_move_init(playermove_s* pmove)
+    {
+        static auto& g = globals::instance();
+
+        //g.engine_funcs->Con_Printf("Loading textures!\n");
+        MessageBox(NULL, L"", L"", MB_OK);
+
+        PM_InitTextureTypes(pmove);
+
+        g.original_client_funcs->pClientMoveInit(pmove);
+    }
+
 	void init()
 	{
+        AllocConsole();
+        freopen("CONOUT$", "w", stdout);
+
         static auto& g = globals::instance();
 		auto client = GetModuleHandle(L"client.dll");
         auto opengl_dll = GetModuleHandle(L"opengl32.dll");
@@ -900,6 +922,7 @@ namespace hooks
         g.client_funcs->pCalcRefdef = hk_calc_ref_def;
         g.client_funcs->pPostRunCmd = hk_post_run_cmd;
         g.client_funcs->pHudRedrawFunc = hk_hud_redraw;
+        g.client_funcs->pClientMoveInit = hk_client_move_init;
 
         uintptr_t wgl_swap_buffers = reinterpret_cast<uintptr_t>(GetProcAddress(opengl_dll, "wglSwapBuffers"));
         g.original_wgl_swap_buffers = reinterpret_cast<uintptr_t>(memory::hook_func2(wgl_swap_buffers, reinterpret_cast<uintptr_t>(hk_wgl_swap_buffers), 5));

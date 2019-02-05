@@ -143,7 +143,7 @@ typedef struct usermsg_s {
 
 
 typedef void(*command_t)(void);
-typedef struct cmd_t
+struct cmd_t
 {
 	struct cmd_t *next;
 	const char *name;

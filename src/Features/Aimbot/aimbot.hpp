@@ -36,6 +36,8 @@ namespace features
                 this->enabled = false;
                 this->team = false;
                 this->silent = false;
+                this->auto_wall = false;
+                this->auto_wall_min_damage = 30;
                 this->auto_fire = false;
                 this->fov_enabled = false;
                 this->fov_max = 360.0f;
@@ -67,6 +69,8 @@ namespace features
             bool enabled;
             bool team;
             bool silent;
+            bool auto_wall;
+            int auto_wall_min_damage;
 
             bool auto_fire;
 

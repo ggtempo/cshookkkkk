@@ -102,7 +102,7 @@ namespace features
             !g.local_player_data.weapon.in_reload)
         {
             // Get necessary info
-            auto info = get_weapon_info(g.local_player_data.weapon.id);
+            auto info = get_weapon_info((custom::weapon_id)g.local_player_data.weapon.id);
             float velocity = math::vec3(g.local_player_data.velocity.x, g.local_player_data.velocity.y, 0.0f).length();
             auto spread = custom::get_spread(g.local_player_data.weapon.id, info->m_flAccuracy, velocity,
                             g.player_move->flags & FL_ONGROUND, g.player_move->flags & FL_DUCKING,
@@ -144,7 +144,7 @@ namespace features
             !g.local_player_data.weapon.in_reload)
         {
             // Get necessary info
-            auto info = get_weapon_info(g.local_player_data.weapon.id);
+            auto info = get_weapon_info((custom::weapon_id)g.local_player_data.weapon.id);
             float velocity = math::vec3(g.local_player_data.velocity.x, g.local_player_data.velocity.y, 0.0f).length();
             auto spread = custom::get_spread(g.local_player_data.weapon.id, info->m_flAccuracy, velocity,
                             g.player_move->flags & FL_ONGROUND, g.player_move->flags & FL_DUCKING,
