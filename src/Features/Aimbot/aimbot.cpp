@@ -9,6 +9,8 @@ namespace features
     {
         static auto& g = globals::instance();
 
+        //g.engine_funcs->Con_Printf("[AIMBOT] Createmove called\n");
+
         if (this->enabled && (!this->on_key || GetAsyncKeyState(this->key)) && custom::is_gun(g.local_player_data.weapon.id))
         {
             vec3_t start = g.player_move->origin + g.player_move->view_ofs;
@@ -36,7 +38,7 @@ namespace features
                 //auto estimated_damage = get_estimated_damage(start, center, g.local_player_data.weapon.id, best_target.target_id, best_target.target_hitbox_id);
                 //g.engine_funcs->Con_Printf("Estimated damage on target %i is %i\n", best_target.target_id, estimated_damage);
 
-                if (smooth_enabled && !this->silent)
+                if (this->smooth_enabled && !this->silent)
                 {
                     // If the aimbot needs to follow a smooth path
                     // Get the angle difference
@@ -53,7 +55,7 @@ namespace features
                 }
 
                 // If we can fire or we smoothe the angles (eg: snap to target just when shooting or slowly move to the target)
-                if (((g.local_player_data.weapon.next_attack <= 0.0) && (g.local_player_data.weapon.next_primary_attack <= 0.0)) ||
+                if ((((g.local_player_data.weapon.next_attack <= 0.0) && (g.local_player_data.weapon.next_primary_attack <= 0.0)) && (cmd->buttons & IN_ATTACK || this->auto_fire)) ||
                     this->smooth_enabled)
                 {
                     // Normalize the angle
@@ -77,12 +79,24 @@ namespace features
                             {
                                 // Only fire if we have enough ammo
                                 if (!g.local_player_data.weapon.in_reload)
+                                {
                                     cmd->buttons |= IN_ATTACK;
+                                }
                             }
                         }
                     }
                 }
             }
+        }
+
+        if ((this->enabled && this->psilent && !this->smooth_enabled) &&
+            ((g.local_player_data.weapon.next_attack <= 0.0) && (g.local_player_data.weapon.next_primary_attack <= 0.0)) && (cmd->buttons & IN_ATTACK))
+        {
+            g.send_packet = false;
+        }
+        else
+        {
+            g.send_packet = true;
         }
     }
 
@@ -94,7 +108,19 @@ namespace features
         {
             ImGui::Checkbox("Aimbot enabled", &this->enabled);
             ImGui::Checkbox("Aim team", &this->team);
+            auto previous_silent = silent;
+            auto previous_psilent = psilent;
             ImGui::Checkbox("Silent", &this->silent);
+            ImGui::Checkbox("Perfect Silent", &this->psilent);
+
+            // If user turned on psilent, turn on silent
+            if (!this->silent && !previous_silent && this->psilent && !previous_psilent)
+                this->silent = true;
+
+            // If user turned off silent, turn off psilent
+            if (!this->silent && previous_silent)
+                this->psilent = false;
+
             ImGui::Checkbox("###Auto wall enabled", &this->auto_wall);
             ImGui::SameLine();
             ImGui::DragInt("Auto wall", &this->auto_wall_min_damage, 1, 1, 100);

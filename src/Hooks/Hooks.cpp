@@ -617,10 +617,6 @@ namespace hooks
         cmd->forwardmove = new_move.x;
         cmd->sidemove = new_move.y;
         cmd->upmove = new_move.z;
-
-        vec3_t start = g.player_move->origin + g.player_move->view_ofs;
-        vec3_t angles = cmd->viewangles;
-        vec3_t end = start + (angles.to_vector() * 8192);
 	}
 
 	void hk_hud_clientmove(playermove_t* ppmove, int server)
@@ -837,7 +833,7 @@ namespace hooks
 
         while (cmd)
         {
-            g.engine_funcs->Con_Printf("CMD: %s \n", cmd->name);
+            //g.engine_funcs->Con_Printf("CMD: %s \n", cmd->name);
             if (std::strcmp(cmd->name, "screenshot") == 0)
             {
                 g.original_screenshot = reinterpret_cast<uintptr_t>(cmd->function);
@@ -879,10 +875,22 @@ namespace hooks
         g.original_client_funcs->pClientMoveInit(pmove);
     }
 
+    int hk_netchan_canpacket(void* netchan)
+    {
+        typedef int(*fnCanPacket)(void*);
+        static auto& g = globals::instance();
+        static auto original_func = reinterpret_cast<fnCanPacket>(g.original_can_packet);
+
+        if (g.send_packet)
+            return original_func(netchan);
+
+        return false;
+    }
+
 	void init()
 	{
-        AllocConsole();
-        freopen("CONOUT$", "w", stdout);
+        /*AllocConsole();
+        freopen("CONOUT$", "w", stdout);*/
 
         static auto& g = globals::instance();
 		auto client = GetModuleHandle(L"client.dll");
@@ -914,7 +922,7 @@ namespace hooks
         g.game_globals_2 = (globalvars_t**)globals2;
         g.get_weapon_info = get_weapon_info;
 
-        g.engine_funcs->Con_Printf("Globals: 0x%X, 0x%X\n", globals2, weapons_post_think_abs);
+        //g.engine_funcs->Con_Printf("Globals: 0x%X, 0x%X\n", globals2, weapons_post_think_abs);
 
         // Hook client funcs
 		g.client_funcs->pCL_CreateMove = hk_cl_create_move;
@@ -949,13 +957,13 @@ namespace hooks
 
         g.client_funcs->pCL_IsThirdPerson = (void*)hk_is_third_person;
 
-        // CL_WritePacket
-        auto send_packet_ptr = memory::find_pattern("hw.dll", 
-            {
-                0x56, 0x57, 0x33, 0xFF, 0x3B, 0xC7, 0x0F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x83
-            }, 0);
+        auto can_packet_ptr = memory::find_location("hw.dll",
+        {
+            0xD9, 0x05, 0x00, 0x00, 0x00, 0x00, 0xD8, 0x1D, 0x00, 0x00, 0x00, 0x00, 0xDF, 0xE0, 0xF6, 0xC4, 0x00, 0x8B, 0x44, 0x24
+        });
 
-        g.engine_funcs->Con_Printf("SendPacket: 0x%X\n", send_packet_ptr);
+        g.original_can_packet = memory::hook_func2(reinterpret_cast<uintptr_t>(can_packet_ptr), reinterpret_cast<uintptr_t>(hk_netchan_canpacket), 6);
+        g.engine_funcs->Con_Printf("Can_Packet at: 0x%X\n", can_packet_ptr);
 
 
         auto hook_usr_msg = (uint32_t)g.engine_funcs->pfnHookUserMsg;

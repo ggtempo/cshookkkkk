@@ -112,7 +112,6 @@ void PM_InitTextureTypes(playermove_t* pmove)
 
 	fileSize = pmove->COM_FileSize((char*)"sound/materials.txt");
 	pMemFile = pmove->COM_LoadFile((char*)"sound/materials.txt", 5, NULL);
-    //std::cout << "Size: " << fileSize << " file ptr: " << pMemFile << std::endl;
 
 	if (!pMemFile)
 		return;
@@ -162,7 +161,6 @@ void PM_InitTextureTypes(playermove_t* pmove)
 	// Must use engine to free since we are in a .dll
 	pmove->COM_FreeFile(pMemFile);
 
-    std::cout << "Sorting " << std::endl;
 	PM_SortTextures();
 	bTextureTypeInit = true;
 }

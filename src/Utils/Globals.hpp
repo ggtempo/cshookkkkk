@@ -37,6 +37,7 @@ class globals
 
             this->studio_model_renderer_hook = nullptr;
 
+            this->send_packet = true;
             this->first = true;
 
             this->catch_keys = false;
@@ -74,6 +75,9 @@ class globals
         bool taking_screenshot;
         bool taking_snapshot;
 
+        // SendPacket
+        bool send_packet;
+
         // Module base path
         std::string base_path;
 
@@ -92,6 +96,7 @@ class globals
         uintptr_t           original_cur_weapon;
         uintptr_t           original_score_attrib;
         uintptr_t           original_studio_check_bbox;
+        uintptr_t           original_can_packet;
 
         uintptr_t           original_screenshot;
         uintptr_t           original_snapshot;

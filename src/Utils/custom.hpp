@@ -134,8 +134,8 @@ namespace custom
                 {
                     if (velocity > 140)
                         return 0.035 + (0.07) * accuracy;
-                    //else if (fov == 90)
-                    //    return (0.02) * accuracy;
+                    else if (fov == 90)
+                        return (0.02) * accuracy;
                     else
                         return (0.02) * accuracy;
                 }
@@ -428,8 +428,8 @@ namespace custom
                 {
                     if (velocity > 140)
                         return 0.035 + (0.075) * accuracy;
-                    //else if (fov == 90)
-                    //    return (0.02) * accuracy;
+                    else if (fov == 90)
+                        return (0.02) * accuracy;
                     else
                         return (0.02) * accuracy;
                 }

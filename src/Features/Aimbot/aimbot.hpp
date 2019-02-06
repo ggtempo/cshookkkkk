@@ -36,6 +36,7 @@ namespace features
                 this->enabled = false;
                 this->team = false;
                 this->silent = false;
+                this->psilent = false;
                 this->auto_wall = false;
                 this->auto_wall_min_damage = 30;
                 this->auto_fire = false;
@@ -69,6 +70,7 @@ namespace features
             bool enabled;
             bool team;
             bool silent;
+            bool psilent;
             bool auto_wall;
             int auto_wall_min_damage;
 

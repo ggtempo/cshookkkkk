@@ -5,6 +5,7 @@
 #include <tuple>
 #include <Windows.h>
 #include <Psapi.h>
+#include <iostream>
 
 namespace memory
 {
@@ -140,8 +141,13 @@ namespace memory
 			bytes.push_back(*(uint8_t*)(hookAt + i));
 		}
 
-		auto newFunc = create_executable_memory2(bytes, hookFunc, hookAt + 5);
+		auto newFunc = create_executable_memory2(bytes, hookFunc, hookAt + neededBytes);//5);
 		intptr_t newOffset = newFunc.first - hookAt - 5;						// 32bit relative jumps ( - 5 because relative to next instruction )
+
+        for (auto i = 0; i < neededBytes; i++)
+        {
+            *(uint8_t*)(hookAt + i) = 0x90;
+        }
 
 		*(uint8_t*)(hookAt) = 0xE9;		// Jump - 0xE9 0x00000000 - JMP 32bit relative
 		*(uint32_t*)(((uint8_t*)hookAt) + 1) = newOffset;
@@ -150,6 +156,29 @@ namespace memory
 
 		return newFunc.second;
 	}
+
+    inline uint32_t* find_location(uint8_t* base, size_t size, std::vector<uint8_t> bytes, int32_t add = 0, bool substractModule = false)
+    {
+        for (size_t i = 0; i < size; i++)
+		{
+			bool found = true;
+			for (size_t o = 0; o < bytes.size(); o++)
+			{
+				if (base[i + o] != bytes[o] && bytes[o] != 0x00)
+				{
+					found = false;
+					break;
+				}
+			}
+
+			if (found)
+			{
+				return (uint32_t*)(base + i + add) - ((substractModule) ? size : 0);
+			}
+		}
+
+		return 0;
+    }
 
 	inline uint32_t find_pattern(uint8_t* base, size_t size, std::vector<uint8_t> bytes, int32_t add = 0, bool substractModule = false)
 	{
@@ -188,7 +217,17 @@ namespace memory
 		MODULEINFO info;
 		uint8_t* moduleHandle = (uint8_t*)GetModuleHandleA(moduleName.c_str());
 		GetModuleInformation(GetCurrentProcess(), (HMODULE)moduleHandle, &info, sizeof(info));
+
 		return find_pattern(reinterpret_cast<uint8_t*>(info.lpBaseOfDll), info.SizeOfImage, bytes, add, substractModule);
+	}
+
+    inline uint32_t* find_location(std::string moduleName, std::vector<uint8_t> bytes, int32_t add = 0, bool substractModule = false)
+	{
+		MODULEINFO info;
+		uint8_t* moduleHandle = (uint8_t*)GetModuleHandleA(moduleName.c_str());
+		GetModuleInformation(GetCurrentProcess(), (HMODULE)moduleHandle, &info, sizeof(info));
+
+		return find_location(reinterpret_cast<uint8_t*>(info.lpBaseOfDll), info.SizeOfImage, bytes, add, substractModule);
 	}
 
     // Simple RAII memory protection class
