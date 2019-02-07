@@ -247,6 +247,32 @@ namespace features
                     // Render the text
                     draw_list->AddText(text_pos, ImColor(1.0f, 1.0f, 1.0f, 1.0f), g.player_data[entity->index].name);
                 }
+
+                /*if (true)
+                {
+                    math::vec3 head_original_screen = {};
+
+                    // Get screen coordinates (0 - 1)
+                    auto head_result = g.engine_funcs->pTriAPI->WorldToScreen(head, head_screen);
+
+                    auto start = g.player_move->origin + g.player_move->view_ofs;
+                    auto direction = (head - start).normalize();
+                    //auto perpendicular = math::vec3::cross_product(direction, math::vec3{1.0, 0.0, 0.0});
+                    math::vec3 forward, right, perpendicular;
+
+                    auto angle = direction.to_angles().normalize_angle();
+                    angle.to_vectors(forward, right, perpendicular);
+                    perpendicular.normalize();
+
+                    auto radius_point = head + (perpendicular * g.aim_fov);
+                    math::vec3 radius_screen = {};
+
+                    auto radius_point_result = g.engine_funcs->pTriAPI->WorldToScreen(radius_point, radius_screen);
+                    auto radius_point_pos = screen_project(radius_screen, {io.DisplaySize.x, io.DisplaySize.y, 0.0f});
+                    
+                    auto radius = (head_pos - radius_point_pos).length();
+                    draw_list->AddCircle(ImVec2(head_pos.x, head_pos.y), radius, ImColor(1.0f, 1.0f, 1.0f, 1.0f), 360.0f);
+                }*/
             }
         }
 

@@ -8,8 +8,7 @@ namespace features
     void aimbot::create_move(float frametime, usercmd_t *cmd, int active)
     {
         static auto& g = globals::instance();
-
-        //g.engine_funcs->Con_Printf("[AIMBOT] Createmove called\n");
+        g.aim_fov = this->fov_max;
 
         if (this->enabled && (!this->on_key || GetAsyncKeyState(this->key)) && custom::is_gun(g.local_player_data.weapon.id))
         {
@@ -89,6 +88,8 @@ namespace features
             }
         }
 
+        // If psilent is enabled and we can fire, stop sending packets
+        // Otherwise, continue normally
         if ((this->enabled && this->psilent && !this->smooth_enabled) &&
             ((g.local_player_data.weapon.next_attack <= 0.0) && (g.local_player_data.weapon.next_primary_attack <= 0.0)) && (cmd->buttons & IN_ATTACK))
         {
@@ -244,12 +245,17 @@ namespace features
                         continue;
                     
 
-                    auto result = this->get_fov_to_target(angles, needed_angle, distance);
+                    auto fov_result = this->get_fov_to_target(angles, needed_angle, distance);
 
-                    if ((result.fov < this->fov_max) || !this->fov_enabled)
+                    auto direction = angles.to_vector().normalize();
+                    auto sphere_test = math::ray_hits_sphere(origin, direction, center, this->fov_max);
+
+                    // If the players crosshair hits the virtual sphere, target is valid
+                    // We still sort by using the traditional FOV
+                    if (sphere_test.hit || !this->fov_enabled)
                     {
                         // FOV is 10 times more important than real_distance
-                        auto metric = (result.fov) + (result.real_distance / 10);
+                        auto metric = (fov_result.fov) + (fov_result.real_distance / 10);
 
                         if (metric < best_metric)
                         {

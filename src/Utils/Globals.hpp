@@ -46,6 +46,8 @@ class globals
             this->mirrorcam_buffer = 0;
             this->mirrorcam_texture = 0;
             this->mirrorcam_depth_buffer = 0;
+
+            this->aim_fov = 0;
         }
 
     public:
@@ -74,6 +76,9 @@ class globals
         bool hide_on_screenshot;
         bool taking_screenshot;
         bool taking_snapshot;
+
+        // Aimbot fov copy
+        float aim_fov;
 
         // SendPacket
         bool send_packet;

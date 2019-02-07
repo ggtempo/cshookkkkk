@@ -180,6 +180,37 @@ namespace math
         return ray_hits_aabbox(transformed_origin, rotated_direction, aabbox);
     }
 
+    inline ray_result ray_hits_sphere(const vec3& origin, const vec3& direction, const vec3& point, const float radius)
+    {
+        auto radius2 = radius * radius;
+
+        vec3 l = point - origin;
+        float tca = l.dot_product(direction);
+        float d2 = l.dot_product(l) - (tca * tca);
+        if (d2 > radius2)
+            return {false, 1.0};
+        
+        float thc = std::sqrt(radius2 - d2);
+        float t0 = tca - thc;
+        float t1 = tca + thc;
+
+        if (t0 > t1)
+            std::swap(t0, t1);
+
+        if (t0 < 0)
+        {
+            t0 = t1;
+
+            if (t0 < 0)
+                return {false, 1.0};
+        }
+
+        float t = t0;
+
+        auto fraction = t / l.length();
+        return {true, fraction};
+    }
+
     inline float to_deg(float angle)
     {
         return angle * (180 / pi);
