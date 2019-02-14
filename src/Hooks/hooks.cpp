@@ -402,11 +402,11 @@ namespace hooks
         }
     }
 
-	uint32_t find_client_functions()
-	{
-		DWORD dw_export_pointer = memory::find_pattern("hw.dll", { 0x68, 0x00, 0x00, 0x00, 0x00, 0xE8, 0x00, 0x00, 0x00, 0x00, 0x83, 0xC4, 0x0C, 0xE8, 0x00, 0x00, 0x00, 0x00, 0xE8, 0x00, 0x00, 0x00, 0x00 }, 1, false);
-		return dw_export_pointer;
-	}
+    uint32_t find_client_functions()
+    {
+        DWORD dw_export_pointer = memory::find_pattern("hw.dll", { 0x68, 0x00, 0x00, 0x00, 0x00, 0xE8, 0x00, 0x00, 0x00, 0x00, 0x83, 0xC4, 0x0C, 0xE8, 0x00, 0x00, 0x00, 0x00, 0xE8, 0x00, 0x00, 0x00, 0x00 }, 1, false);
+        return dw_export_pointer;
+    }
 
     void setup_hitboxes()
     {
@@ -604,12 +604,12 @@ namespace hooks
         return original_func();
     }
 
-	void hk_cl_create_move(float frametime, usercmd_t *cmd, int active)
-	{
+    void hk_cl_create_move(float frametime, usercmd_t *cmd, int active)
+    {
         static auto& g = globals::instance();
-		g.original_client_funcs->pCL_CreateMove(frametime, cmd, active);
+        g.original_client_funcs->pCL_CreateMove(frametime, cmd, active);
 
-		auto lp = g.engine_funcs->GetLocalPlayer();
+        auto lp = g.engine_funcs->GetLocalPlayer();
 
         if (!lp || !lp->player || !active)
             return;
@@ -622,10 +622,10 @@ namespace hooks
         update_visibility();
         update_status();
 
-		if (cmd->buttons & IN_JUMP && !(g.player_move->flags & FL_ONGROUND) && g.bhop_enabled)
-		{
-			cmd->buttons &= ~IN_JUMP;
-		}
+        if (cmd->buttons & IN_JUMP && !(g.player_move->flags & FL_ONGROUND) && g.bhop_enabled)
+        {
+            cmd->buttons &= ~IN_JUMP;
+        }
         
         features::aimbot::instance().create_move(frametime, cmd, active);
         features::triggerbot::instance().create_move(frametime, cmd, active);
@@ -662,17 +662,17 @@ namespace hooks
         cmd->forwardmove = new_move.x;
         cmd->sidemove = new_move.y;
         cmd->upmove = new_move.z;
-	}
+    }
 
-	void hk_hud_clientmove(playermove_t* ppmove, int server)
-	{
+    void hk_hud_clientmove(playermove_t* ppmove, int server)
+    {
         static auto& g = globals::instance();
 
-		g.original_client_funcs->pClientMove(ppmove, server);
-		std::memcpy(g.player_move, ppmove, sizeof(playermove_t));
+        g.original_client_funcs->pClientMove(ppmove, server);
+        std::memcpy(g.player_move, ppmove, sizeof(playermove_t));
 
         PM_InitTextureTypes(ppmove);
-	}
+    }
 
     typedef int(*fnTeamInfo)(const char*, int, void*);
     int hk_team_info(const char *name, int size, void *buffer)
@@ -929,25 +929,25 @@ namespace hooks
         return false;
     }
 
-	void init()
-	{
+    void init()
+    {
         /*AllocConsole();
         freopen("CONOUT$", "w", stdout);*/
 
         static auto& g = globals::instance();
-		auto client = GetModuleHandle(L"client.dll");
+        auto client = GetModuleHandle(L"client.dll");
         auto opengl_dll = GetModuleHandle(L"opengl32.dll");
         auto hw_dll = GetModuleHandle(L"hw.dll");
 
-		auto cInitialize = reinterpret_cast<uint8_t*>(GetProcAddress(client, "Initialize"));
-		g.engine_funcs = reinterpret_cast<cl_enginefunc_t*>(*(uint32_t*)(cInitialize + 0x1C));
+        auto cInitialize = reinterpret_cast<uint8_t*>(GetProcAddress(client, "Initialize"));
+        g.engine_funcs = reinterpret_cast<cl_enginefunc_t*>(*(uint32_t*)(cInitialize + 0x1C));
 
-		g.player_move = new playermove_t();
+        g.player_move = new playermove_t();
 
         // Find and save original/hooked client funcs
-		g.client_funcs = reinterpret_cast<cldll_func_t*>(find_client_functions());
-		g.original_client_funcs = new cldll_func_t();
-		std::memcpy(g.original_client_funcs, g.client_funcs, sizeof(cldll_func_t));
+        g.client_funcs = reinterpret_cast<cldll_func_t*>(find_client_functions());
+        g.original_client_funcs = new cldll_func_t();
+        std::memcpy(g.original_client_funcs, g.client_funcs, sizeof(cldll_func_t));
 
         uintptr_t weapons_post_think_rel = *(uintptr_t*)(g.original_client_funcs->pPostRunCmd + 0x2A);
         uintptr_t weapons_post_think_abs = weapons_post_think_rel + ((uintptr_t)g.original_client_funcs->pPostRunCmd + 0x2E);
@@ -967,8 +967,8 @@ namespace hooks
         //g.engine_funcs->Con_Printf("Globals: 0x%X, 0x%X\n", globals2, weapons_post_think_abs);
 
         // Hook client funcs
-		g.client_funcs->pCL_CreateMove = hk_cl_create_move;
-		g.client_funcs->pClientMove = hk_hud_clientmove;
+        g.client_funcs->pCL_CreateMove = hk_cl_create_move;
+        g.client_funcs->pClientMove = hk_hud_clientmove;
         g.client_funcs->pCalcRefdef = hk_calc_ref_def;
         g.client_funcs->pPostRunCmd = hk_post_run_cmd;
         g.client_funcs->pHudRedrawFunc = hk_hud_redraw;
@@ -1034,7 +1034,7 @@ namespace hooks
         }
 
         hook_screenshot();
-	}
+    }
 
     cl_enginefunc_t* get_engine_funcs()
     {
