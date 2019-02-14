@@ -17,16 +17,14 @@ namespace features
             vec3_t forward = angles.to_vector() * 8192;
 
             // Get the best target
-            auto best_target = this->find_best_target(start, angles);
+            auto best_target = this->find_best_target(start, angles, frametime);
 
             // Check if it's a valid target
             if (best_target.target_id != -1 && best_target.target_hitbox_id != -1)
             {
                 // Transform hitbox position into world space
                 auto& hitbox = g.player_data[best_target.target_id].hitboxes[best_target.target_hitbox_id];
-                vec3_t transformed_bbmin = hitbox.matrix.transform_vec3(hitbox.box.bbmin);
-                vec3_t transformed_bbmax = hitbox.matrix.transform_vec3(hitbox.box.bbmax);
-                vec3_t center = (transformed_bbmin + transformed_bbmax) * 0.5;
+                vec3_t center = best_target.center;
 
 
                 auto needed_angles =    (center - start)        // Get target vector
@@ -95,7 +93,7 @@ namespace features
         {
             g.send_packet = false;
         }
-        else
+        else if (this->enabled && this->psilent)
         {
             g.send_packet = true;
         }
@@ -103,12 +101,14 @@ namespace features
 
     void aimbot::show_menu()
     {
+        static auto& g = globals::instance();
         static auto complex_hitboxes = false;
 
         if (ImGui::Begin("Aimbot"))
         {
             ImGui::Checkbox("Aimbot enabled", &this->enabled);
             ImGui::Checkbox("Aim team", &this->team);
+            ImGui::Checkbox("Prediction", &this->prediction);
             auto previous_silent = silent;
             auto previous_psilent = psilent;
             ImGui::Checkbox("Silent", &this->silent);
@@ -120,7 +120,10 @@ namespace features
 
             // If user turned off silent, turn off psilent
             if (!this->silent && previous_silent)
+            {
                 this->psilent = false;
+                g.send_packet = true;
+            }
 
             ImGui::Checkbox("###Auto wall enabled", &this->auto_wall);
             ImGui::SameLine();
@@ -207,12 +210,24 @@ namespace features
         ImGui::End();
     }
 
-    aimbot::aim_target aimbot::find_best_target(const math::vec3& origin, const math::vec3& angles)
+    aimbot::aim_target aimbot::find_best_target(const math::vec3& origin, const math::vec3& angles, float frame_time)
     {
         static auto& g = globals::instance();
         auto local = g.engine_funcs->GetLocalPlayer();
-        aim_target best_target = {-1, -1};
-        float best_metric = 99999999.0f;
+
+        struct possible_target
+        {
+            int player_id;
+            hitbox_numbers hitbox_id;
+            
+            float fov;
+            float distance;
+
+            math::vec3 center;
+        };
+
+        aimbot::aim_target best_target = {};
+        std::vector<possible_target> possible_targets;
 
         // For every player
         for (auto i = 0; i < g.engine_funcs->GetMaxClients(); i++)
@@ -226,24 +241,30 @@ namespace features
             if ((g.player_data[entity->index].team == g.local_player_data.team) && !this->team)
                 continue;
 
+            // Get player's velocity
+            auto velocity = entity->curstate.origin - entity->prevstate.origin;
+
             // Go through each hitbox
             for (auto& [key, hitbox] : g.player_data[entity->index].hitboxes)
             {
-                // Check if it fits our criteria
-                if ((hitbox.visible || this->auto_wall) && (this->target_hitboxes[key] || this->all_hitboxes) && key != hitbox_numbers::unknown)
+
+                if ((this->target_hitboxes[key] || this->all_hitboxes) && key != hitbox_numbers::unknown)
                 {
                     // Valid hitbox, get it's fov
                     vec3_t transformed_bbmin = hitbox.matrix.transform_vec3(hitbox.box.bbmin);
                     vec3_t transformed_bbmax = hitbox.matrix.transform_vec3(hitbox.box.bbmax);
                     vec3_t center = (transformed_bbmin + transformed_bbmax) * 0.5;
 
-                    float distance = (center - origin).length();
-                    vec3_t needed_angle = (center - origin).normalize().to_angles().normalize_angle();
+                    // If the player cares about correcting for 1 tick old hitbox positions, move them by the velocity
+                    if (prediction)
+                    {
+                        // Could possibly be incorrect
+                        // The hitbox could be pushed into the wall
+                        center += velocity * frame_time;
+                    }
 
-                    // Only attempt to shoot through walls if the hitbox is 
-                    if (!hitbox.visible && this->auto_wall && get_estimated_damage(origin, center, g.local_player_data.weapon.id, entity->index, key) < this->auto_wall_min_damage)
-                        continue;
-                    
+                    float distance = (center - origin).length();
+                    vec3_t needed_angle = (center - origin).normalize().to_angles().normalize_angle();                    
 
                     auto fov_result = this->get_fov_to_target(angles, needed_angle, distance);
 
@@ -251,25 +272,49 @@ namespace features
                     auto sphere_test = math::ray_hits_sphere(origin, direction, center, this->fov_max);
 
                     // If the players crosshair hits the virtual sphere, target is valid
-                    // We still sort by using the traditional FOV
                     if (sphere_test.hit || !this->fov_enabled)
                     {
                         // FOV is 10 times more important than real_distance
-                        auto metric = (fov_result.fov) + (fov_result.real_distance / 10);
+                        //auto metric = (fov_result.fov) + (fov_result.real_distance / 10);
 
-                        if (metric < best_metric)
-                        {
-                            best_target.target_id = i;
-                            best_target.target_hitbox_id = key;
-                            best_metric = metric;
-                        }
+                        // We found a useful target, push it to our possible target vector
+                        possible_targets.push_back(possible_target{
+                            entity->index, static_cast<hitbox_numbers>(key),
+                            fov_result.fov, fov_result.real_distance,
+                            center
+                        });
                     }
-                    
                 }
             }
         }
 
-        return best_target;
+        // Sort, so that we get best target first
+        std::sort(possible_targets.begin(), possible_targets.end(), [](const possible_target& target1, const possible_target& target2) -> bool {
+            auto metric1 = (target1.fov) + (target1.distance / 10);
+            auto metric2 = (target2.fov) + (target2.distance / 10);
+
+            return metric1 < metric2;
+        });
+
+        // Go through each potential target
+        for (auto target : possible_targets)
+        {
+            // Get the target hitbox
+            auto& hitbox = g.player_data[target.player_id].hitboxes[target.hitbox_id];
+            int hid = static_cast<int>(target.hitbox_id);
+
+            if  (hitbox.visible ||          // Hitbox is visible
+                (this->auto_wall &&         // Or we have auto-wall enabled and estimated damage is greater or equal to the required damage
+                (get_estimated_damage(origin, target.center, g.local_player_data.weapon.id, target.player_id, hid) >= this->auto_wall_min_damage)))
+            {
+                return {
+                    target.player_id, target.hitbox_id,
+                    target.center
+                };
+            }
+        }
+
+        return {-1, -1, math::vec3{0.0f, 0.0f, 0.0f}};
     }
 
     aimbot::fov_result aimbot::get_fov_to_target(const math::vec3& angles, const math::vec3& target_angles, float distance)

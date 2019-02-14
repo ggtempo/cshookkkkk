@@ -12,10 +12,13 @@ namespace features
             {
                 int target_id;
                 int target_hitbox_id;
+                math::vec3 center;
 
                 bool operator==(const aim_target& other) const
                 {
-                    return (this->target_id == other.target_id) && (this->target_hitbox_id == other.target_hitbox_id);
+                    return  (this->target_id == other.target_id)                &&
+                            (this->target_hitbox_id == other.target_hitbox_id)  &&
+                            (this->center == other.center);
                 }
 
                 bool operator!=(const aim_target& other) const
@@ -45,6 +48,8 @@ namespace features
                 this->smooth_enabled = false;
                 this->smooth_speed = 7.0f;
 
+                this->prediction = false;
+
                 this->delay = 0;
                 this->next_fire = -1;
 
@@ -63,7 +68,7 @@ namespace features
             void show_menu();
 
         private:
-            aim_target find_best_target(const math::vec3& origin, const math::vec3& angles);
+            aim_target find_best_target(const math::vec3& origin, const math::vec3& angles, float frame_time);
             fov_result get_fov_to_target(const math::vec3& angles, const math::vec3& target_angles, float distance);
 
         private:
@@ -80,6 +85,8 @@ namespace features
             float fov_max;
             bool smooth_enabled;
             float smooth_speed;
+
+            bool prediction;
 
             int64_t delay;
             int64_t next_fire;

@@ -7,7 +7,9 @@ namespace features
     {
         static auto& g = globals::instance();
 
-        if (this->enabled && !(cmd->buttons & IN_ATTACK) && g.player_move->movetype != MOVETYPE_FLY)
+        static bool send_switch = true;
+
+        if (this->enabled && !(cmd->buttons & IN_ATTACK) && (g.player_move->movetype != MOVETYPE_FLY))
         {
             static float angle = 0.0;
             auto view = cmd->viewangles;
@@ -16,47 +18,104 @@ namespace features
 
             auto correct_view = true;
 
-            // Determine the correct pitch angle
-            switch (this->pitch_mode)
+            if (this->fake_angles && g.send_packet)
             {
-                case aa_mode_pitch::down_emotion:
-                    new_view.x = -88.0f;
-                    break;
-
-                case aa_mode_pitch::down_unsafe:
-                    new_view.x = -179.0f;
-                    correct_view = false;
-                    break;
-
-                case aa_mode_pitch::up_emotion:
-                    new_view.x = 88.0f;
-                    break;
-
-                case aa_mode_pitch::up_unsafe:
-                    new_view.x = 179.0f;
-                    correct_view = false;
-                    break;
+                send_switch = !send_switch;
+                g.send_packet = send_switch;
             }
 
-            // Determine the correct yaw angle
-            switch (this->yaw_mode)
+            if (this->fake_angles && g.send_packet)
             {
-                case aa_mode_yaw::backwards:
-                    new_view.y -= 180.0f;
-                    break;
-                
-                case aa_mode_yaw::left:
-                    new_view.y += 90.0f;
-                    break;
+                // If fake angles are enabled and we are sending fake angles
 
-                case aa_mode_yaw::right:
-                    new_view.y -= 90.0f;
-                    break;
+                // Determine the correct pitch angle
+                switch (this->fake_pitch_mode)
+                {
+                    case aa_mode_pitch::down_emotion:
+                        new_view.x = -88.0f;
+                        break;
 
-                case aa_mode_yaw::spin:
-                    new_view.y = angle;
-                    angle += 20;
-                    break;
+                    case aa_mode_pitch::down_unsafe:
+                        new_view.x = -180.0f;
+                        correct_view = false;
+                        break;
+
+                    case aa_mode_pitch::up_emotion:
+                        new_view.x = 88.0f;
+                        break;
+
+                    case aa_mode_pitch::up_unsafe:
+                        new_view.x = 180.0f;
+                        correct_view = false;
+                        break;
+                }
+
+                // Determine the correct yaw angle
+                switch (this->fake_yaw_mode)
+                {
+                    case aa_mode_yaw::backwards:
+                        new_view.y -= 180.0f;
+                        break;
+                    
+                    case aa_mode_yaw::left:
+                        new_view.y += 90.0f;
+                        break;
+
+                    case aa_mode_yaw::right:
+                        new_view.y -= 90.0f;
+                        break;
+
+                    case aa_mode_yaw::spin:
+                        new_view.y = -angle;                // Backwards spinbot (So that the real/fake angles differ)
+                        angle += 20;
+                        break;
+                }
+            }
+            else
+            {
+                // Otherwise, send real angles
+                // Determine the correct pitch angle
+                switch (this->pitch_mode)
+                {
+                    case aa_mode_pitch::down_emotion:
+                        new_view.x = -88.0f;
+                        break;
+
+                    case aa_mode_pitch::down_unsafe:
+                        new_view.x = -180.0f;
+                        correct_view = false;
+                        break;
+
+                    case aa_mode_pitch::up_emotion:
+                        new_view.x = 88.0f;
+                        break;
+
+                    case aa_mode_pitch::up_unsafe:
+                        new_view.x = 180.0f;
+                        correct_view = false;
+                        break;
+                }
+
+                // Determine the correct yaw angle
+                switch (this->yaw_mode)
+                {
+                    case aa_mode_yaw::backwards:
+                        new_view.y -= 180.0f;
+                        break;
+                    
+                    case aa_mode_yaw::left:
+                        new_view.y += 90.0f;
+                        break;
+
+                    case aa_mode_yaw::right:
+                        new_view.y -= 90.0f;
+                        break;
+
+                    case aa_mode_yaw::spin:
+                        new_view.y = angle;
+                        angle += 20;
+                        break;
+                }
             }
 
             // Wrap spinbot angle to 360 degrees
@@ -74,6 +133,8 @@ namespace features
 
     void anti_aim::show_menu()
     {
+        static auto& g = globals::instance();
+
         struct option
         {
             const char* name;
@@ -99,6 +160,9 @@ namespace features
         if (ImGui::Begin("Anti-Aim"))
         {
             ImGui::Checkbox("Enabled", &this->enabled);
+
+            ImGui::Columns(2);
+            ImGui::NewLine();
             
             if (ImGui::BeginCombo("Pitch mode", pitch_modes[(int)this->pitch_mode].name))
             {
@@ -134,6 +198,52 @@ namespace features
                 }
                 ImGui::EndCombo();
             }
+
+            ImGui::NextColumn();
+
+            bool old_fake_angles = this->fake_angles;
+            ImGui::Checkbox("Fake angles", &this->fake_angles);
+
+            // If we turned off fake angles
+            if (old_fake_angles && !this->fake_angles)
+                g.send_packet = true;      // Reset send_packet back to default, might mess with aimbot, but whatever             
+
+            if (ImGui::BeginCombo("Pitch mode###2", pitch_modes[(int)this->fake_pitch_mode].name))
+            {
+                for (size_t i = 0; i < pitch_modes.size(); i++)
+                {
+                    bool selected = (i == (size_t)this->fake_pitch_mode);
+                    if (ImGui::Selectable(pitch_modes[i].name, selected))
+                        this->fake_pitch_mode = (aa_mode_pitch)i;    // If we selected this mode, remember it
+
+                    if (ImGui::IsItemActive() || ImGui::IsItemHovered())
+                        ImGui::SetTooltip(pitch_modes[i].tooltip);  // If we are hovering over the option, display it's tooltip
+
+                    if (selected)
+                        ImGui::SetItemDefaultFocus();   // Scroll to the currently selected otion
+                }
+                ImGui::EndCombo();
+            }
+
+            if (ImGui::BeginCombo("Yaw mode###3", yaw_modes[(int)this->fake_yaw_mode].name))
+            {
+                for (size_t i = 0; i < yaw_modes.size(); i++)
+                {
+                    bool selected = (i == (size_t)this->fake_yaw_mode);
+
+                    if (ImGui::Selectable(yaw_modes[i].name, selected))
+                        this->fake_yaw_mode = (aa_mode_yaw)i;    // If we selected this mode, remember it
+
+                    if (ImGui::IsItemActive() || ImGui::IsItemHovered())
+                        ImGui::SetTooltip(yaw_modes[i].tooltip);  // If we are hovering over the option, display it's tooltip
+
+                    if (selected)
+                        ImGui::SetItemDefaultFocus();   // Scroll to the currently selected otion
+                }
+                ImGui::EndCombo();
+            }
+
+            ImGui::Columns(1);
         }
         ImGui::End();
     }

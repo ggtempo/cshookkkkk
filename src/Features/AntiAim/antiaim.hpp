@@ -5,9 +5,9 @@
     Anti aim modes
     Pitch:
         Down (emotion)  -> 89
-        Down (unsafe)   -> 179
+        Down (unsafe)   -> 180
         Up (emotion)    -> -89
-        Up (unsafe)     -> -179
+        Up (unsafe)     -> -180
 
 
     Yaw:
@@ -45,6 +45,12 @@ namespace features
             anti_aim()
             {
                 this->enabled = false;
+
+                this->fake_angles = false;
+
+                this->pitch_mode = aa_mode_pitch::off;
+                this->yaw_mode = aa_mode_yaw::off;
+
                 this->pitch_mode = aa_mode_pitch::off;
                 this->yaw_mode = aa_mode_yaw::off;
             }
@@ -61,7 +67,13 @@ namespace features
 
         private:
             bool            enabled;
+
+            bool            fake_angles;
             aa_mode_pitch   pitch_mode;
             aa_mode_yaw     yaw_mode;
+
+            aa_mode_pitch   fake_pitch_mode;
+            aa_mode_yaw     fake_yaw_mode;
+
     };
 }

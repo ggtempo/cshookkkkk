@@ -251,10 +251,10 @@ namespace hooks
                 }
 
                 {
-                    auto size = ImGui::CalcTextSize("CSHook by Dminik");
+                    auto size = ImGui::CalcTextSize("CSHook by DJ_Luigi");
                     
                     ImGui::SetCursorPos(ImVec2((title_bar_size.x / 2) - (size.x / 2), 0));
-                    ImGui::Text("CSHook by Dminik");
+                    ImGui::Text("CSHook by DJ_Luigi");
                 }
 
                 ImGui::PopStyleVar();
@@ -298,9 +298,53 @@ namespace hooks
                 ImGui::End();
             }
 
+            /*if (g.menu_enabled)
+            {
+                static auto selected = 0;
+                if (ImGui::Begin("Player list"))
+                {
+                    auto local = g.engine_funcs->GetLocalPlayer();
+                    ImGui::ListBoxHeader("Players");
+                    {
+                        for (auto i = 1; i < g.engine_funcs->GetMaxClients(); i++)
+                        {
+                            auto entity = g.engine_funcs->GetEntityByIndex(i);
+
+                            if (!entity || !entity->index || entity == local || entity->index == local->index)
+                                continue;
+
+                            if (!g.player_data[entity->index].alive || g.player_data[entity->index].dormant)
+                                continue;
+
+                            auto sel = (i == selected);
+                            if (ImGui::Selectable(g.player_data[entity->index].name, sel))
+                                selected = i;
+                        }
+                    }
+                    ImGui::ListBoxFooter();
+
+                    if (selected)
+                    {
+                        auto entity = g.engine_funcs->GetEntityByIndex(selected);
+                        if (!entity || !entity->index || entity == local || entity->index == local->index ||
+                            !g.player_data[entity->index].alive || g.player_data[entity->index].dormant)
+                        {
+                            // Invalid
+                            selected = 0;
+                        }
+                        else
+                        {
+                            ImGui::Text("Origin: x:%f y:%f z:%f", entity->origin.x, entity->origin.y, entity->origin.z);
+                            ImGui::Text("View:   x:%f y:%f z:%f", entity->curstate.angles.x, entity->curstate.angles.y, entity->curstate.angles.z);
+                        }
+                    }
+                }
+                ImGui::End();
+            }*/
+
             if (g.mirror_cam_enabled)
             {
-                ImGui::Begin("Test");
+                ImGui::Begin("Mirrorcam");
                     auto pos = ImGui::GetCursorScreenPos();
                     auto size = ImGui::GetContentRegionMax();
                     auto bottom_right = ImVec2(pos.x + size.x, pos.y + size.y);
@@ -565,12 +609,13 @@ namespace hooks
         static auto& g = globals::instance();
 		g.original_client_funcs->pCL_CreateMove(frametime, cmd, active);
 
-        //g.engine_funcs->Con_Printf("CreateMove: msec: %i, lerp: %i\n", cmd->msec, cmd->lerp_msec);
-
 		auto lp = g.engine_funcs->GetLocalPlayer();
 
         if (!lp || !lp->player || !active)
             return;
+
+        // Reset create move
+        g.send_packet = true;
 
         auto original_angles = cmd->viewangles;
 
@@ -866,9 +911,6 @@ namespace hooks
     void hk_client_move_init(playermove_s* pmove)
     {
         static auto& g = globals::instance();
-
-        //g.engine_funcs->Con_Printf("Loading textures!\n");
-        MessageBox(NULL, L"", L"", MB_OK);
 
         PM_InitTextureTypes(pmove);
 
