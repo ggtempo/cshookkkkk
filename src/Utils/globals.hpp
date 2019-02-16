@@ -95,11 +95,13 @@ class globals
         cldll_func_t*		original_client_funcs;
         cldll_func_t*		client_funcs;
         playermove_t*		player_move;
+        usercmd_t*          last_cmd;
 
         uintptr_t           original_studio_entity_light;
         uintptr_t           original_team_info;
         uintptr_t           original_cur_weapon;
         uintptr_t           original_score_attrib;
+        uintptr_t           original_damage;
         uintptr_t           original_studio_check_bbox;
         uintptr_t           original_can_packet;
 

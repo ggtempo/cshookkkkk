@@ -1,4 +1,5 @@
 #pragma once
+#include <cpptoml.h>
 #include "../../Utils/globals.hpp"
 #include <unordered_map>
 #include <vector>
@@ -55,6 +56,83 @@ namespace features
 
                 this->on_key = false;
                 this->key = -1;
+            }
+
+        public:
+            void load_from_config(std::shared_ptr<cpptoml::table> config)
+            {
+                // Get correct section
+                auto aimbot_table = config->get_table("aimbot");
+
+                // If table doesn't exist, just create an empty one
+                if (!aimbot_table)
+                {
+                    aimbot_table = cpptoml::make_table();
+                }
+
+                // Get all values or their respective defaults
+                this->enabled = aimbot_table->get_as<bool>("enabled").value_or(false);
+                this->team = aimbot_table->get_as<bool>("team").value_or(false);
+                this->silent = aimbot_table->get_as<bool>("silent").value_or(false);
+                this->psilent = aimbot_table->get_as<bool>("psilent").value_or(false);
+                this->auto_wall = aimbot_table->get_as<bool>("auto_wall").value_or(false);
+                this->auto_wall_min_damage = aimbot_table->get_as<int>("auto_wall_min_damage").value_or(30);
+                this->auto_fire = aimbot_table->get_as<bool>("auto_fire").value_or(false);
+                this->fov_enabled = aimbot_table->get_as<bool>("fov_enabled").value_or(false);
+                this->fov_max = aimbot_table->get_as<double>("fov_max").value_or(360.0);
+                this->smooth_enabled = aimbot_table->get_as<bool>("smooth_enabled").value_or(false);
+                this->smooth_speed = aimbot_table->get_as<double>("smooth_speed").value_or(7.0);
+                this->prediction = aimbot_table->get_as<bool>("prediction").value_or(false);
+                this->on_key = aimbot_table->get_as<bool>("on_key").value_or(false);
+                this->key = aimbot_table->get_as<int>("key").value_or(-1);
+
+                // Get all target hitboxes
+                auto hitboxes = aimbot_table->get_array_of<int64_t>("target_hitboxes").value_or(std::vector<int64_t>{});
+
+                // Set each target hitbox
+                for (auto hitbox : hitboxes)
+                {
+                    this->target_hitboxes[hitbox] = true;
+                }
+
+                // Aim at all hitboxes only if we have no target_hitboxes
+                this->all_hitboxes = (hitboxes.size() == 0);
+            }
+
+            void save_to_config(std::ofstream& config_stream)
+            {
+                // Create section
+                config_stream << "[aimbot]" << std::endl;
+
+                // Write all relevant values
+                config_stream 
+                    << "enabled = "                << (this->enabled ? "true" : "false")        << std::endl
+                    << "team = "                   << (this->team ? "true" : "false")           << std::endl
+                    << "silent = "                 << (this->silent ? "true" : "false")         << std::endl
+                    << "psilent = "                << (this->psilent ? "true" : "false")        << std::endl
+                    << "auto_wall = "              << (this->auto_wall ? "true" : "false")      << std::endl
+                    << "auto_wall_min_damage = "   << this->auto_wall_min_damage                << std::endl
+                    << "auto_fire = "              << (this->auto_fire ? "true" : "false")      << std::endl
+                    << "fov_enabled = "            << (this->fov_enabled ? "true" : "false")    << std::endl
+                    << "fov_max = "                << this->fov_max                             << std::endl
+                    << "smooth_enabled = "         << (this->smooth_enabled ? "true" : "false") << std::endl
+                    << "smooth_speed = "           << this->smooth_speed                        << std::endl
+                    << "prediction = "             << (this->prediction ? "true" : "false")     << std::endl
+                    << "on_key = "                 << (this->on_key ? "true" : "false")         << std::endl
+                    << "key = "                    << this->key                                 << std::endl;
+
+                // Write all hitboxes
+                config_stream << "target_hitboxes = [";
+                for (auto& [hitbox, active] : this->target_hitboxes)
+                {
+                    if (active)
+                    {
+                        config_stream << " " << hitbox << ",";
+                    }
+                }
+                config_stream << "]" << std::endl;
+                // Trailing newline
+                config_stream << std::endl;
             }
         
         public:

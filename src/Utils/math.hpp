@@ -44,6 +44,17 @@ namespace math
                 }
             }
 
+            void save(mtrx p)
+            {
+                for (size_t i = 0; i < 3; i++)
+                {
+                    for (size_t o = 0; o < 4; o++)
+                    {
+                        p[i][o] = this->matrix[i][o];
+                    }
+                }
+            }
+
             std::array<float, 4>& operator[](int index)
             {
                 return this->matrix[index];
@@ -133,6 +144,66 @@ namespace math
                 matrix[2][2] = cr * cp;
 
                 return *this;
+            }
+
+            static void angle_matrix(const math::vec3& angle, mtrx matrix)
+            {
+                float sp, sy, sr, cp, cy, cr, radx, rady, radz;
+
+                radx = angle.x * ( pi * 2 / 360 );
+                rady = angle.y * ( pi * 2 / 360 );
+                radz = angle.z * ( pi * 2 / 360 );
+
+                sp = std::sin(radx);
+                sy = std::sin(rady);
+                sr = std::sin(radz);
+
+                cp = std::cos(radx);
+                cy = std::cos(rady);
+                cr = std::cos(radz);
+
+                matrix[0][0] = cp * cy;
+                matrix[0][1] = cp * sy;
+                matrix[0][2] = -sp;
+                
+                matrix[1][0] = 1 * sr * sp * cy + 1 * cr * -sy;
+                matrix[1][1] = 1 * sr * sp * sy + 1 * cr * cy;
+                matrix[1][2] = 1 * sr * cp;
+                    
+                matrix[2][0] = cr * sp * cy + -sr * -sy;
+                matrix[2][1] = cr * sp * sy + -sr * cy;
+                matrix[2][2] = cr * cp;
+            }
+
+            static void quaternion(const math::vec3& quaternion, mtrx matrix)
+            {
+                matrix[0][0] = 1.0f - 2.0f * quaternion[1] * quaternion[1] - 2.0f * quaternion[2] * quaternion[2];
+                matrix[1][0] = 2.0f * quaternion[0] * quaternion[1] + 2.0f * quaternion[3] * quaternion[2];
+                matrix[2][0] = 2.0f * quaternion[0] * quaternion[2] - 2.0f * quaternion[3] * quaternion[1];
+
+                matrix[0][1] = 2.0f * quaternion[0] * quaternion[1] - 2.0f * quaternion[3] * quaternion[2];
+                matrix[1][1] = 1.0f - 2.0f * quaternion[0] * quaternion[0] - 2.0f * quaternion[2] * quaternion[2];
+                matrix[2][1] = 2.0f * quaternion[1] * quaternion[2] + 2.0f * quaternion[3] * quaternion[0];
+
+                matrix[0][2] = 2.0f * quaternion[0] * quaternion[2] + 2.0f * quaternion[3] * quaternion[1];
+                matrix[1][2] = 2.0f * quaternion[1] * quaternion[2] - 2.0f * quaternion[3] * quaternion[0];
+                matrix[2][2] = 1.0f - 2.0f * quaternion[0] * quaternion[0] - 2.0f * quaternion[1] * quaternion[1];
+            }
+
+            static void concat_transforms(mtrx in1, mtrx in2, mtrx out)
+            {
+                out[0][0] = in1[0][0] * in2[0][0] + in1[0][1] * in2[1][0] + in1[0][2] * in2[2][0];
+                out[0][1] = in1[0][0] * in2[0][1] + in1[0][1] * in2[1][1] + in1[0][2] * in2[2][1];
+                out[0][2] = in1[0][0] * in2[0][2] + in1[0][1] * in2[1][2] + in1[0][2] * in2[2][2];
+                out[0][3] = in1[0][0] * in2[0][3] + in1[0][1] * in2[1][3] + in1[0][2] * in2[2][3] + in1[0][3];
+                out[1][0] = in1[1][0] * in2[0][0] + in1[1][1] * in2[1][0] + in1[1][2] * in2[2][0];
+                out[1][1] = in1[1][0] * in2[0][1] + in1[1][1] * in2[1][1] + in1[1][2] * in2[2][1];
+                out[1][2] = in1[1][0] * in2[0][2] + in1[1][1] * in2[1][2] + in1[1][2] * in2[2][2];
+                out[1][3] = in1[1][0] * in2[0][3] + in1[1][1] * in2[1][3] + in1[1][2] * in2[2][3] + in1[1][3];
+                out[2][0] = in1[2][0] * in2[0][0] + in1[2][1] * in2[1][0] + in1[2][2] * in2[2][0];
+                out[2][1] = in1[2][0] * in2[0][1] + in1[2][1] * in2[1][1] + in1[2][2] * in2[2][1];
+                out[2][2] = in1[2][0] * in2[0][2] + in1[2][1] * in2[1][2] + in1[2][2] * in2[2][2];
+                out[2][3] = in1[2][0] * in2[0][3] + in1[2][1] * in2[1][3] + in1[2][2] * in2[2][3] + in1[2][3];
             }
     };
 

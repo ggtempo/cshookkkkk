@@ -18,22 +18,23 @@
 #include "../Features/Removals/removals.hpp"
 #include "../HLSDK/Weapons.hpp"
 #include "../HLSDK/Textures.hpp"
+#include "../Features/Utils/utils.hpp"
+#include "../Features/Config/config.hpp"
+
+#include "studio.hpp"
+#include "messages.hpp"
+#include "commands.hpp"
+#include "netchan.hpp"
 
 #include <iostream>
 
 namespace hooks
 {
-    inline bool is_valid_player(cl_entity_s* entity)
-    {
-        static auto& g = globals::instance();
-        auto local = g.engine_funcs->GetLocalPlayer();
-        return  (entity) && (entity != local) && (entity->index != local->index) &&
-                (g.player_data[entity->index].team == custom::player_team::CT || g.player_data[entity->index].team == custom::player_team::T);
-    }
-
-    typedef LRESULT(__stdcall*WNDPRC)(HWND, UINT, WPARAM, LPARAM);
+    
     LRESULT CALLBACK hk_wnd_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     {
+        using window_proc_fn = LRESULT(__stdcall*)(HWND, UINT, WPARAM, LPARAM);
+
         static auto& g = globals::instance();
 
         if (!g.first)
@@ -83,15 +84,15 @@ namespace hooks
             io.MouseDrawCursor = false;
         }
 
-        return reinterpret_cast<WNDPRC>(g.original_window_proc)(hWnd, uMsg, wParam, lParam);
+        return reinterpret_cast<window_proc_fn>(g.original_window_proc)(hWnd, uMsg, wParam, lParam);
     }
 
     BOOL __stdcall hk_wgl_swap_buffers(HDC hDc)
     {
-        typedef BOOL(__stdcall *wglSwapBuffersFn)(HDC);
+        using wgl_swap_buffers_fn = BOOL(__stdcall*)(HDC);
 
         static auto& g = globals::instance();
-        static auto original_func = reinterpret_cast<wglSwapBuffersFn>(g.original_wgl_swap_buffers);
+        static auto original_func = reinterpret_cast<wgl_swap_buffers_fn>(g.original_wgl_swap_buffers);
 
         if (!g.first)
         {
@@ -115,7 +116,8 @@ namespace hooks
 
             ImGuiIO& io = ImGui::GetIO();check_gl_error();
             auto& style = ImGui::GetStyle();check_gl_error();
-            io.IniFilename = g.base_path.c_str();
+            static std::string imgui_config = g.base_path + "CSHook.ini";
+            io.IniFilename = imgui_config.c_str();
 
             io.MouseDrawCursor = false;
 
@@ -291,6 +293,10 @@ namespace hooks
                         ImGui::Checkbox("Mirror cam", &g.mirror_cam_enabled);
                         ImGui::Checkbox("Third person", &g.third_person_enabled);
                         ImGui::Checkbox("Hide on screenshots", &g.hide_on_screenshot);
+                        if (ImGui::Button("Save test"))
+                        {
+                            config::save_config("default");
+                        }
                     ImGui::NextColumn();
                         features::removals::instance().show_menu();
                     ImGui::Columns(1);
@@ -298,7 +304,7 @@ namespace hooks
                 ImGui::End();
             }
 
-            /*if (g.menu_enabled)
+            if (g.menu_enabled)
             {
                 static auto selected = 0;
                 if (ImGui::Begin("Player list"))
@@ -335,12 +341,12 @@ namespace hooks
                         else
                         {
                             ImGui::Text("Origin: x:%f y:%f z:%f", entity->origin.x, entity->origin.y, entity->origin.z);
-                            ImGui::Text("View:   x:%f y:%f z:%f", entity->curstate.angles.x, entity->curstate.angles.y, entity->curstate.angles.z);
+                            ImGui::Text("View:   x:%f y:%f z:%f", entity->angles.x, entity->angles.y, entity->angles.z);
                         }
                     }
                 }
                 ImGui::End();
-            }*/
+            }
 
             if (g.mirror_cam_enabled)
             {
@@ -381,229 +387,6 @@ namespace hooks
         return original_func(hDc);
     }
 
-    typedef void(__thiscall* fnStudioRenderModel)(void* ecx);
-    void __fastcall hk_studio_render_model(CStudioModelRenderer* ecx, void* edx)
-    {
-        static auto& g = globals::instance();
-        static auto original_func = g.studio_model_renderer_hook->get_original_vfunc<fnStudioRenderModel>(18);
-        auto entity = g.engine_studio->GetCurrentEntity();
-        auto local = g.engine_funcs->GetLocalPlayer();
-
-        g.engine_studio->SetChromeOrigin();
-        g.engine_studio->SetForceFaceFlags( 0 );
-
-        if ( entity->curstate.renderfx == render_effects::kRenderFxGlowShell )
-        {
-            original_func(ecx);
-        }
-        else
-        {
-            features::visuals::instance().studio_render_model(ecx);
-        }
-    }
-
-    uint32_t find_client_functions()
-    {
-        DWORD dw_export_pointer = memory::find_pattern("hw.dll", { 0x68, 0x00, 0x00, 0x00, 0x00, 0xE8, 0x00, 0x00, 0x00, 0x00, 0x83, 0xC4, 0x0C, 0xE8, 0x00, 0x00, 0x00, 0x00, 0xE8, 0x00, 0x00, 0x00, 0x00 }, 1, false);
-        return dw_export_pointer;
-    }
-
-    void setup_hitboxes()
-    {
-        static auto& g = globals::instance();
-        auto local = g.engine_funcs->GetLocalPlayer();
-        auto entity = g.engine_studio->GetCurrentEntity();
-
-        if (entity && entity->model && entity->player && entity != local)
-        {
-            // Get model info
-            auto model = g.engine_studio->SetupPlayerModel(entity->index);
-            auto header = g.engine_studio->Mod_Extradata(model);
-
-            // How many hitboxes does the player have
-            auto body_parts = header->numhitboxes;
-
-            // If he has any
-            if (body_parts > 0)
-            {
-                using transform_matrix = float[128][3][4];
-                auto p_transform = (transform_matrix*)g.engine_studio->StudioGetBoneTransform();
-
-                // Get hitbox info
-                auto studio_box = reinterpret_cast<mstudiobbox_t*>((byte*)header + header->hitboxindex);
-
-                // Go through every hitbox
-                for (int i = 0; i < body_parts; i++)
-                {
-                    // Copy important data
-                    auto bone = studio_box[i].bone;                                                 // Bone ID
-                    auto transform = math::matrix3x4((*p_transform)[bone]);                         // Transform matrix
-                    auto box = math::bbox{studio_box[i].bbmin, studio_box[i].bbmax};                // Hitbox coordinates (Top left corner + Bottom right corner)
-                    g.player_data[entity->index].hitboxes[i] = {bone, false, box, transform};       // Store the data
-                }
-            }
-        }
-    }
-
-    void update_visibility()
-    {
-        static auto& g = globals::instance();
-        auto local = g.engine_funcs->GetLocalPlayer();
-
-        for (auto i = 0; i < g.engine_funcs->GetMaxClients(); i++)
-        {
-            auto entity = g.engine_funcs->GetEntityByIndex(i);
-
-            if (!is_valid_player(entity))
-                continue;
-
-            for (auto& [key, hitbox] : g.player_data[entity->index].hitboxes)
-            {
-                math::vec3 start = g.player_move->origin + g.player_move->view_ofs;
-
-                math::vec3 max_transformed = hitbox.matrix.transform_vec3(hitbox.box.bbmax);
-                math::vec3 min_transformed = hitbox.matrix.transform_vec3(hitbox.box.bbmin);
-                math::vec3 center = (max_transformed + min_transformed) * 0.5;
-
-
-                //auto trace = *g.engine_funcs->PM_TraceLine(start, end, PM_TRACELINE_PHYSENTSONLY, 0, lp->index);
-                pmtrace_t world_trace = {};
-
-                // For some reason, the trace functions are very imprecise when concerning players
-                // However, they seem to be precise when tracing just against the world
-                // So, we can check if the trace hit the world
-                g.engine_funcs->pEventAPI->EV_SetTraceHull(2);
-                g.engine_funcs->pEventAPI->EV_PlayerTrace(start, center, PM_WORLD_ONLY, -1, &world_trace);
-                
-                if (world_trace.fraction == 1.0f)
-                {
-                    // If not, check if we hit a non player with another trace
-                    // To check against boxes/doors/whatever
-
-                    pmtrace_t trace = {};
-                    g.engine_funcs->pEventAPI->EV_SetTraceHull(2);
-                    g.engine_funcs->pEventAPI->EV_PlayerTrace(start, center, PM_GLASS_IGNORE, -1, &trace);
-                    auto trace_entity_index = g.engine_funcs->pEventAPI->EV_IndexFromTrace(&trace);
-                    
-                    if (!trace_entity_index)
-                    {
-                        // We didn't hit any entity, thus the hitbox is visible
-                        hitbox.visible = true;
-                    }
-                    else
-                    {
-                        // We hit another entity
-                        auto trace_entity = g.engine_funcs->GetEntityByIndex(trace_entity_index);
-
-                        if (!trace_entity->player)
-                        {
-                            // Entity is not a player, thus is a map object
-                            hitbox.visible = false;
-                        }
-                        else// if (((trace_entity->index != i) && (trace_entity != local) && (trace_entity->index != local->index)))
-                        {
-                            // We hit a different player, thus we consider hitbox visible
-                            hitbox.visible = true;
-                        }
-                    }
-
-                    //hitbox.visible = true;
-                }
-                else
-                {
-                    // We hit the world
-                    hitbox.visible = false;
-                }
-            }
-        }
-    }
-
-    void update_status()
-    {
-        static auto& g = globals::instance();
-        auto local = g.engine_funcs->GetLocalPlayer();
-
-        // Reset everyone as dormant
-        for (auto& [key, value] : g.player_data)
-        {
-            value.dormant = true;
-        }
-
-        for (size_t i = 1; i < g.engine_funcs->GetMaxClients(); i++)
-        {
-            auto entity = g.engine_funcs->GetEntityByIndex(i);
-
-            auto updated = true;
-
-            // Check if local player exists
-            if (!updated || !(local))
-                updated = false;
-
-            // Check if exists or is a local player
-            if (!updated || !(entity) || (entity == local) || (entity->index == local->index) || entity->index < 0 || entity->index > g.engine_funcs->GetMaxClients())
-                updated = false;
-
-            // Check if is a player or has a model/gun model
-            if (!updated || !(entity->model) || !(entity->player) || !(entity->curstate.weaponmodel))
-                updated = false;
-
-            // Check if the player belongs to a team
-            if (!updated || g.player_data[entity->index].team == custom::player_team::UNKNOWN)
-                updated = false;
-
-            // Mins and maxs
-            if (!updated || entity->curstate.mins.is_zero() || entity->curstate.maxs.is_zero())
-                updated = false;
-
-            if (!updated || entity->curstate.messagenum < local->curstate.messagenum)
-                updated = false;
-
-            /*if (!updated || (local->curstate.iuser1 == 4 && local->curstate.iuser2 == entity->index))
-                updated = false;*/
-
-            g.player_data[entity->index].dormant = !updated;
-
-            if (updated)
-            {
-                // Update position and velocity
-                g.player_data[entity->index].origin = entity->origin;
-                g.player_data[entity->index].velocity = entity->curstate.velocity;
-
-                hud_player_info_t info = {};
-                g.engine_funcs->pfnGetPlayerInfo(entity->index, &info);
-
-                g.player_data[entity->index].name = info.name;
-            }
-            
-        }
-    }
-
-    typedef void(__cdecl*fnStudioEntityLight)(alight_s* plight);
-    void hk_studio_entity_light(alight_s* plight)
-    {
-        static auto& g = globals::instance();
-        static auto original_func = reinterpret_cast<fnStudioEntityLight>(g.original_studio_entity_light);
-        setup_hitboxes();
-
-        
-        original_func(plight);
-    }
-
-    int hk_studio_check_bbox()
-    {
-        typedef int(*fnStudioCheckBBox)();
-        static auto& g = globals::instance();
-        static auto original_func = reinterpret_cast<fnStudioCheckBBox>(g.original_studio_check_bbox);
-
-        auto entity = g.engine_studio->GetCurrentEntity();
-
-
-        if (!g.player_data[entity->index].dormant && g.player_data[entity->index].alive)
-            return 1;
-
-        return original_func();
-    }
-
     void hk_cl_create_move(float frametime, usercmd_t *cmd, int active)
     {
         static auto& g = globals::instance();
@@ -619,8 +402,8 @@ namespace hooks
 
         auto original_angles = cmd->viewangles;
 
-        update_visibility();
-        update_status();
+        utils::update_visibility();
+        utils::update_status();
 
         if (cmd->buttons & IN_JUMP && !(g.player_move->flags & FL_ONGROUND) && g.bhop_enabled)
         {
@@ -634,6 +417,8 @@ namespace hooks
 
         auto move = vec3_t{cmd->forwardmove, cmd->sidemove, cmd->upmove};
         auto new_move = math::correct_movement(original_angles, cmd->viewangles, move);
+
+        features::anti_aim::instance().post_move_fix(cmd, new_move);
 
         // Reset movement bits
         cmd->buttons &= ~IN_FORWARD;
@@ -662,6 +447,8 @@ namespace hooks
         cmd->forwardmove = new_move.x;
         cmd->sidemove = new_move.y;
         cmd->upmove = new_move.z;
+
+        g.last_cmd = cmd;
     }
 
     void hk_hud_clientmove(playermove_t* ppmove, int server)
@@ -672,51 +459,6 @@ namespace hooks
         std::memcpy(g.player_move, ppmove, sizeof(playermove_t));
 
         PM_InitTextureTypes(ppmove);
-    }
-
-    typedef int(*fnTeamInfo)(const char*, int, void*);
-    int hk_team_info(const char *name, int size, void *buffer)
-    {
-        static auto& g = globals::instance();
-        static auto original_func = reinterpret_cast<fnTeamInfo>(g.original_team_info);
-
-        BEGIN_READ(buffer, size);
-
-        uint8_t index = READ_BYTE();
-        char *team_str = READ_STRING();
-
-        auto local = g.engine_funcs->GetLocalPlayer();
-
-        if (index >= 0 && index < g.engine_funcs->GetMaxClients())
-        {
-            custom::player_team team;
-            if (std::strcmp(team_str, "CT") == 0)
-            {
-                // Player is a ct
-                team = custom::player_team::CT;
-            }
-            else if (std::strcmp(team_str, "TERRORIST") == 0)
-            {
-                // Player is a t
-                team = custom::player_team::T;
-            }
-            else
-            {
-                // Player is a spectator/unknown
-                team = custom::player_team::UNKNOWN;
-            }
-
-            if (index == local->index)
-            {
-                g.local_player_data.team = team;
-            }
-            else
-            {
-                g.player_data[index].team = team;
-            }
-        }
-
-        return original_func(name, size, buffer);
     }
 
     void hk_post_run_cmd( struct local_state_s *from, struct local_state_s *to, struct usercmd_s *cmd, int runfuncs, double time, unsigned int random_seed )
@@ -749,17 +491,6 @@ namespace hooks
         }
     }
 
-    // For now useless
-    int hk_cur_weapon(const char *name, int size, void *buffer )
-    {
-        typedef int(*fnCurWeapon)(const char *, int, void *);
-        static auto& g = globals::instance();
-        static auto original_func = reinterpret_cast<fnCurWeapon>(g.original_cur_weapon);
-
-        return original_func(name, size, buffer);
-    }
-
-    typedef void(*fnCalcRefDef)(ref_params_t*);
     void hk_calc_ref_def(ref_params_t* params)
     {
         static auto& g = globals::instance();
@@ -830,103 +561,176 @@ namespace hooks
         }
     }
 
-    int hk_score_attrib(const char* name, int size, void* buffer)
-    {
-        typedef int(*fnScoreAttrib)(const char*, int, void*);
-        static auto& g = globals::instance();
-        static auto original_func = reinterpret_cast<fnScoreAttrib>(g.original_score_attrib);
-
-        BEGIN_READ(buffer, size);
-
-        uint8_t index = READ_BYTE();
-        uint8_t status = READ_BYTE();
-
-        if ((index >= 0) && (index < g.engine_funcs->GetMaxClients()) && (index != g.engine_funcs->GetLocalPlayer()->index))
-        {           
-            g.player_data[index].alive = !(status & 1);
-        }
-        else if (index == g.engine_funcs->GetLocalPlayer()->index)
-        {
-            g.local_player_data.alive = !(status & 1);
-        }
-
-        return original_func(name, size, buffer);
-    }
-
     bool hk_is_third_person()
     {
         static auto& g = globals::instance();
         return g.third_person_enabled && (!g.hide_on_screenshot || !(g.taking_screenshot || g.taking_snapshot));
     }
 
-    void hk_screenshot()
-    {
-        static auto& g = globals::instance();
-        g.taking_screenshot = true;
-    }
-
-    void hk_snapshot()
-    {
-        static auto& g = globals::instance();
-        g.taking_snapshot = true;
-    }
-
-    void hook_screenshot()
-    {
-        static auto& g = globals::instance();
-        auto cmd = g.engine_funcs->GetFirstCmdFunctionHandle();
-
-        while (cmd)
-        {
-            //g.engine_funcs->Con_Printf("CMD: %s \n", cmd->name);
-            if (std::strcmp(cmd->name, "screenshot") == 0)
-            {
-                g.original_screenshot = reinterpret_cast<uintptr_t>(cmd->function);
-                cmd->function = hk_screenshot;
-            }
-
-            if (std::strcmp(cmd->name, "snapshot") == 0)
-            {
-                g.original_snapshot = reinterpret_cast<uintptr_t>(cmd->function);
-                cmd->function = hk_snapshot;
-            }
-
-            cmd = cmd->next;
-        }
-    }
-
     int hk_hud_redraw(float time, int intermission)
     {
-        typedef int(*fnHudRedraw)(float, int);
         static auto& g = globals::instance();
-        static auto original_func = reinterpret_cast<fnHudRedraw>(g.original_client_funcs->pHudRedrawFunc);
+        static auto original_func = g.original_client_funcs->pHudRedrawFunc;
 
         // Switch to the original buffer for drawing the HUD
         //glBindFramebuffer(GL_FRAMEBUFFER, 0);check_gl_error();
-        //glDrawBuffer(GL_BACK);check_gl_error();
+        //glDrawBuffer(GL_BACK);check_gl_error();        
 
+        features::removals::instance().hud_redraw(time, intermission);
         return original_func(time, intermission);
     }
 
     void hk_client_move_init(playermove_s* pmove)
     {
         static auto& g = globals::instance();
+        static auto original_func = g.original_client_funcs->pClientMoveInit;
 
         PM_InitTextureTypes(pmove);
 
-        g.original_client_funcs->pClientMoveInit(pmove);
+        original_func(pmove);
     }
 
-    int hk_netchan_canpacket(void* netchan)
+    uint32_t find_client_functions()
     {
-        typedef int(*fnCanPacket)(void*);
+        DWORD dw_export_pointer = memory::find_pattern("hw.dll", { 0x68, 0x00, 0x00, 0x00, 0x00, 0xE8, 0x00, 0x00, 0x00, 0x00, 0x83, 0xC4, 0x0C, 0xE8, 0x00, 0x00, 0x00, 0x00, 0xE8, 0x00, 0x00, 0x00, 0x00 }, 1, false);
+        return dw_export_pointer;
+    }
+
+    void save_client()
+    {
         static auto& g = globals::instance();
-        static auto original_func = reinterpret_cast<fnCanPacket>(g.original_can_packet);
 
-        if (g.send_packet)
-            return original_func(netchan);
+        // Find and save original/hooked client funcs
+        g.client_funcs = reinterpret_cast<cldll_func_t*>(find_client_functions());
+        g.original_client_funcs = new cldll_func_t();
+        std::memcpy(g.original_client_funcs, g.client_funcs, sizeof(cldll_func_t));
+    }
 
-        return false;
+    void hook_globals()
+    {
+        static auto& g = globals::instance();
+
+        // Steal WeaponsPostThink from PostRunCmd
+        uintptr_t weapons_post_think_rel = *(uintptr_t*)(g.original_client_funcs->pPostRunCmd + 0x2A);
+        uintptr_t weapons_post_think_abs = weapons_post_think_rel + ((uintptr_t)g.original_client_funcs->pPostRunCmd + 0x2E);
+
+        // Steal InitClientWeapons from WeaponsPostThink
+        uintptr_t init_client_weapons_rel = *(uintptr_t*)(weapons_post_think_abs + 0x3);
+        uintptr_t init_client_weapons_abs = init_client_weapons_rel + ((uintptr_t)weapons_post_think_abs + 0x7);
+
+        // Get global pointers
+        g.game_globals = *(globalvars_t**)(init_client_weapons_abs + 0x23);
+        g.game_globals_2 = *(globalvars_t***)(weapons_post_think_abs + 0xC);
+
+        // Side effect, save get_weapon_info
+        g.get_weapon_info = *(uintptr_t*)(weapons_post_think_abs + 0x1E) + weapons_post_think_abs + 0x22;
+    }
+
+    void hook_studio()
+    {
+        static auto& g = globals::instance();
+
+        // Get StudioModelInterface
+        uint32_t offset = reinterpret_cast<uint32_t>(memory::get_module_info("client.dll").lpBaseOfDll);
+        auto HUD_GetStudioModelInterface = (uint32_t)hooks::get_client_funcs()->pStudioInterface;
+
+        // Steal EngineStudio from StudioModelInterface
+        g.engine_studio = *reinterpret_cast<engine_studio_api_s**>(HUD_GetStudioModelInterface + 0x1A);
+
+        // Hook EngineStudio functions
+        g.original_studio_entity_light = reinterpret_cast<uintptr_t>(g.engine_studio->StudioEntityLight);
+        g.engine_studio->StudioEntityLight = hk_studio_entity_light;
+
+        g.original_studio_check_bbox = reinterpret_cast<uintptr_t>(g.engine_studio->StudioCheckBBox);
+        g.engine_studio->StudioCheckBBox = hk_studio_check_bbox;
+
+
+        // Steam StudioModelRenderer from StudioModelInterface
+        auto studio_model_renderer = *reinterpret_cast<CStudioModelRenderer**>(HUD_GetStudioModelInterface + 0x27);
+
+        // Hook vtable functions
+        g.studio_model_renderer_hook = new memory::vmt_hook(studio_model_renderer);
+        g.studio_model_renderer_hook->hook_vfunc(reinterpret_cast<void*>(hk_studio_render_model), 18);
+        g.studio_model_renderer_hook->hook();
+    }
+
+    void hook_client()
+    {
+        static auto& g = globals::instance();
+
+        // Hook client funcs
+        g.client_funcs->pCL_CreateMove = hk_cl_create_move;
+        g.client_funcs->pClientMove = hk_hud_clientmove;
+        g.client_funcs->pCalcRefdef = hk_calc_ref_def;
+        g.client_funcs->pPostRunCmd = hk_post_run_cmd;
+        g.client_funcs->pHudRedrawFunc = hk_hud_redraw;
+        g.client_funcs->pClientMoveInit = hk_client_move_init;
+        g.client_funcs->pCL_IsThirdPerson = (void*)hk_is_third_person;
+    }
+
+    void hook_gl()
+    {
+        static auto& g = globals::instance();
+        auto opengl_dll = GetModuleHandle(L"opengl32.dll");
+
+        // Hook wglSwapBuffers
+        uintptr_t wgl_swap_buffers = reinterpret_cast<uintptr_t>(GetProcAddress(opengl_dll, "wglSwapBuffers"));
+        // Overwrite first 5 bytes
+        g.original_wgl_swap_buffers = reinterpret_cast<uintptr_t>(memory::hook_func2(wgl_swap_buffers, reinterpret_cast<uintptr_t>(hk_wgl_swap_buffers), 5));
+
+        // Hook WindowProc
+        g.original_window_proc = SetWindowLongPtr(g.main_window, GWL_WNDPROC, (LONG_PTR)&hk_wnd_proc);
+    }
+
+    using message_fn = int(*)(const char *name, int size, void *buffer);
+    uintptr_t hook_message(const char* message_name, message_fn new_function)
+    {
+        static auto& g = globals::instance();
+
+        // Steal RegisterUserMessage from HookUserMessage
+        auto hook_usr_msg = (uint32_t)g.engine_funcs->pfnHookUserMsg;
+        uint32_t register_usr_msg = *(uint32_t*)(hook_usr_msg + 0x1B) + hook_usr_msg + (0x1F);
+
+        // Find first Message Pointer in RegisterUserMessage
+        uint32_t first_usr_msg_ptr = *(uint32_t*)(register_usr_msg + 0xD);
+        usermsg_t* first_usr_msg_entry = *reinterpret_cast<usermsg_t**>(first_usr_msg_ptr);
+
+        // Messages are a linked list
+        auto element = first_usr_msg_entry;
+        while (element)
+        {
+            if (std::strcmp(element->szMsg, message_name) == 0)
+            {
+                uintptr_t original_function = (uintptr_t)element->pfn;
+                element->pfn = new_function;
+                return original_function;
+            }
+
+            // Go to the next one
+            element = element->pNext;
+        }
+
+        return 0;
+    }
+
+    uintptr_t hook_command(const char* command_name, command_t new_function)
+    {
+        static auto& g = globals::instance();
+        auto cmd = g.engine_funcs->GetFirstCmdFunctionHandle();
+
+        while (cmd)
+        {
+            if (std::strcmp(cmd->name, command_name) == 0)
+            {
+                uintptr_t original_function = reinterpret_cast<uintptr_t>(cmd->function);
+                cmd->function = new_function;
+                return original_function;
+            }
+
+            cmd = cmd->next;
+        }
+
+        return 0;
     }
 
     void init()
@@ -936,7 +740,6 @@ namespace hooks
 
         static auto& g = globals::instance();
         auto client = GetModuleHandle(L"client.dll");
-        auto opengl_dll = GetModuleHandle(L"opengl32.dll");
         auto hw_dll = GetModuleHandle(L"hw.dll");
 
         auto cInitialize = reinterpret_cast<uint8_t*>(GetProcAddress(client, "Initialize"));
@@ -944,60 +747,13 @@ namespace hooks
 
         g.player_move = new playermove_t();
 
-        // Find and save original/hooked client funcs
-        g.client_funcs = reinterpret_cast<cldll_func_t*>(find_client_functions());
-        g.original_client_funcs = new cldll_func_t();
-        std::memcpy(g.original_client_funcs, g.client_funcs, sizeof(cldll_func_t));
-
-        uintptr_t weapons_post_think_rel = *(uintptr_t*)(g.original_client_funcs->pPostRunCmd + 0x2A);
-        uintptr_t weapons_post_think_abs = weapons_post_think_rel + ((uintptr_t)g.original_client_funcs->pPostRunCmd + 0x2E);
-
-        uintptr_t init_client_weapons_rel = *(uintptr_t*)(weapons_post_think_abs + 0x3);
-        uintptr_t init_client_weapons_abs = init_client_weapons_rel + ((uintptr_t)weapons_post_think_abs + 0x7);
-
-        uintptr_t globals = *(uintptr_t*)(init_client_weapons_abs + 0x23);// + weapons_post_think_abs + 0x10;
-        uintptr_t get_weapon_info = *(uintptr_t*)(weapons_post_think_abs + 0x1E) + weapons_post_think_abs + 0x22;
-
-        uintptr_t globals2 = *(uintptr_t*)(weapons_post_think_abs + 0xC);// + weapons_post_think_abs + 0x10;
-
-        g.game_globals = (globalvars_t*)globals;
-        g.game_globals_2 = (globalvars_t**)globals2;
-        g.get_weapon_info = get_weapon_info;
-
-        //g.engine_funcs->Con_Printf("Globals: 0x%X, 0x%X\n", globals2, weapons_post_think_abs);
-
-        // Hook client funcs
-        g.client_funcs->pCL_CreateMove = hk_cl_create_move;
-        g.client_funcs->pClientMove = hk_hud_clientmove;
-        g.client_funcs->pCalcRefdef = hk_calc_ref_def;
-        g.client_funcs->pPostRunCmd = hk_post_run_cmd;
-        g.client_funcs->pHudRedrawFunc = hk_hud_redraw;
-        g.client_funcs->pClientMoveInit = hk_client_move_init;
-
-        uintptr_t wgl_swap_buffers = reinterpret_cast<uintptr_t>(GetProcAddress(opengl_dll, "wglSwapBuffers"));
-        g.original_wgl_swap_buffers = reinterpret_cast<uintptr_t>(memory::hook_func2(wgl_swap_buffers, reinterpret_cast<uintptr_t>(hk_wgl_swap_buffers), 5));
-        g.original_window_proc = SetWindowLongPtr(g.main_window, GWL_WNDPROC, (LONG_PTR)&hk_wnd_proc);
-
-        uint32_t offset = reinterpret_cast<uint32_t>(memory::get_module_info("client.dll").lpBaseOfDll);
-        auto HUD_GetStudioModelInterface = (uint32_t)hooks::get_client_funcs()->pStudioInterface;
-
-        g.engine_studio = *reinterpret_cast<engine_studio_api_s**>(HUD_GetStudioModelInterface + 0x1A);
-        auto studio_model_renderer = *reinterpret_cast<CStudioModelRenderer**>(HUD_GetStudioModelInterface + 0x27);
-
-        g.studio_model_renderer_hook = new memory::vmt_hook(studio_model_renderer);
-        g.studio_model_renderer_hook->hook_vfunc(reinterpret_cast<void*>(hk_studio_render_model), 18);
-        g.studio_model_renderer_hook->hook();
-
-        g.original_studio_entity_light = reinterpret_cast<uintptr_t>(g.engine_studio->StudioEntityLight);
-        g.engine_studio->StudioEntityLight = hk_studio_entity_light;
-
-        g.original_studio_check_bbox = reinterpret_cast<uintptr_t>(g.engine_studio->StudioCheckBBox);
-        g.engine_studio->StudioCheckBBox = hk_studio_check_bbox;
+        save_client();
+        hook_globals();
+        hook_client();
+        hook_studio();
+        hook_gl();
 
         g.engine_time = *(double**)(g.engine_funcs->pNetAPI->Status + 0x84);
-
-
-        g.client_funcs->pCL_IsThirdPerson = (void*)hk_is_third_person;
 
         auto can_packet_ptr = memory::find_location("hw.dll",
         {
@@ -1007,33 +763,15 @@ namespace hooks
         g.original_can_packet = memory::hook_func2(reinterpret_cast<uintptr_t>(can_packet_ptr), reinterpret_cast<uintptr_t>(hk_netchan_canpacket), 6);
         g.engine_funcs->Con_Printf("Can_Packet at: 0x%X\n", can_packet_ptr);
 
+        // Hook messages
+        g.original_team_info = hook_message("TeamInfo", hk_team_info);
+        g.original_score_attrib = hook_message("ScoreAttrib", hk_score_attrib);
 
-        auto hook_usr_msg = (uint32_t)g.engine_funcs->pfnHookUserMsg;
-        uint32_t register_usr_msg = *(uint32_t*)(hook_usr_msg + 0x1B) + hook_usr_msg + (0x1F);
-        uint32_t first_usr_msg_ptr = *(uint32_t*)(register_usr_msg + 0xD);
-        usermsg_t* first_usr_msg_entry = *reinterpret_cast<usermsg_t**>(first_usr_msg_ptr);
+        // Hook commands
+        g.original_screenshot = hook_command("screenshot", hk_screenshot);
+        g.original_snapshot = hook_command("snapshot", hk_snapshot);
 
-        // Messages are a linked list
-        auto element = first_usr_msg_entry;
-        while (element)
-        {
-            if (std::strcmp(element->szMsg, "TeamInfo") == 0)
-            {
-               // We found the right one
-               g.original_team_info = (uintptr_t)element->pfn;
-               element->pfn = hk_team_info;
-            }
-
-            if (std::strcmp(element->szMsg, "ScoreAttrib") == 0)
-            {
-                g.original_score_attrib = (uintptr_t)element->pfn;
-                element->pfn = hk_score_attrib;
-            }
-            // Go to the next one
-            element = element->pNext;
-        }
-
-        hook_screenshot();
+        config::load_config("default");
     }
 
     cl_enginefunc_t* get_engine_funcs()

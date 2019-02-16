@@ -102,7 +102,6 @@ namespace features
     void aimbot::show_menu()
     {
         static auto& g = globals::instance();
-        static auto complex_hitboxes = false;
 
         if (ImGui::Begin("Aimbot"))
         {
@@ -142,7 +141,10 @@ namespace features
             ImGui::SameLine();
             ImGui::Hotkey("Aim key", this->key);
             
+
+            auto complex_hitboxes = !this->all_hitboxes;
             ImGui::Checkbox("Show complex hitboxes", &complex_hitboxes);
+            this->all_hitboxes = !complex_hitboxes;
 
             if (complex_hitboxes)
             {
@@ -251,8 +253,16 @@ namespace features
                 if ((this->target_hitboxes[key] || this->all_hitboxes) && key != hitbox_numbers::unknown)
                 {
                     // Valid hitbox, get it's fov
-                    vec3_t transformed_bbmin = hitbox.matrix.transform_vec3(hitbox.box.bbmin);
-                    vec3_t transformed_bbmax = hitbox.matrix.transform_vec3(hitbox.box.bbmax);
+                    auto matrix = hitbox.matrix;
+
+                    // Test against rotated players
+                    if (entity->curstate.angles.z != 0.0)
+                    {
+                        matrix = matrix.angle_matrix(math::vec3{0.0, 0.0, -entity->curstate.angles.z});
+                    }
+
+                    vec3_t transformed_bbmin = matrix.transform_vec3(hitbox.box.bbmin);
+                    vec3_t transformed_bbmax = matrix.transform_vec3(hitbox.box.bbmax);
                     vec3_t center = (transformed_bbmin + transformed_bbmax) * 0.5;
 
                     // If the player cares about correcting for 1 tick old hitbox positions, move them by the velocity

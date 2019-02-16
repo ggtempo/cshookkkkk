@@ -99,6 +99,37 @@ struct pmtrace_s
 #define MOVETYPE_FOLLOW			12		// track movement of aiment
 #define	MOVETYPE_PUSHSTEP		13		// BSP model that needs physics/world collisions (uses nearest hull for world collision)
 
+typedef struct movevars_s
+{
+	float gravity;			// Gravity for map
+	float stopspeed;		// Deceleration when not moving
+	float maxspeed;			// Max allowed speed
+	float spectatormaxspeed;
+	float accelerate;		// Acceleration factor
+	float airaccelerate;		// Same for when in open air
+	float wateraccelerate;		// Same for when in water
+	float friction;
+	float edgefriction;		// Extra friction near dropofs
+	float waterfriction;		// Less in water
+	float entgravity;		// 1.0
+	float bounce;			// Wall bounce value. 1.0
+	float stepsize;			// sv_stepsize;
+	float maxvelocity;		// maximum server velocity.
+	float zmax;			// Max z-buffer range (for GL)
+	float waveHeight;		// Water wave height (for GL)
+	qboolean footsteps;		// Play footstep sounds
+	char skyName[32];		// Name of the sky map
+	float rollangle;
+	float rollspeed;
+	float skycolor_r;		// Sky color
+	float skycolor_g;
+	float skycolor_b;
+	float skyvec_x;			// Sky vector
+	float skyvec_y;
+	float skyvec_z;
+
+} movevars_t;
+
 typedef struct playermove_s
 {
 	int				player_index;  // So we don't try to run the PM_CheckStuck nudging too quickly.

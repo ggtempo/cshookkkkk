@@ -14,3 +14,4 @@ tools/
 # dependencies
 ## Small dependencies left
 ## such as glad
+dependencies/cpptoml/

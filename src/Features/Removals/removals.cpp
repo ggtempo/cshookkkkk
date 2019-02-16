@@ -28,16 +28,64 @@ namespace features
     {
         static auto& g = globals::instance();
 
-        g.punch_angles.x = params->punchangle[0];
-        g.punch_angles.y = params->punchangle[1];
-        g.punch_angles.z = params->punchangle[2];
+        // Store weapon punch angles
+        g.punch_angles = params->punchangle;
 
         if (this->no_visual_recoil)
         {
-            params->punchangle[0] = 0.0f;
-            params->punchangle[1] = 0.0f;
-            params->punchangle[2] = 0.0f;
+            // If no recoil is enabled, reset "screen shake" back to 0
+            params->punchangle = math::vec3{0.0, 0.0, 0.0};
         }
+    }
+
+    void removals::hud_redraw(float time, int intermission)
+    {
+        static auto& g = globals::instance();
+        static auto last_flash_end = 0.0f;
+
+        // If we have noflash enabled
+        if (this->no_flash)
+        {
+            // Get current screen fade
+            screenfade_s fade = {};
+            g.engine_funcs->pfnGetScreenFade(&fade);
+
+            // If we didn't manipulate the last screen fade
+            if (fade.fadeEnd != last_flash_end)
+            {
+                // Decrease the alpha value of noflash
+                fade.fadealpha *= this->no_flash_value;
+
+                // Add back the screen fade
+                g.engine_funcs->pfnSetScreenFade(&fade);
+
+                // Store last modified screenfade
+                last_flash_end = fade.fadeEnd;
+            }
+        }
+
+        static auto old_fullbright = this->fullbright;
+
+        if (this->fullbright && (!g.hide_on_screenshot || !(g.taking_screenshot || g.taking_snapshot)))
+        {
+            g.engine_funcs->pfnSetFilterMode(255);
+        }
+        else// if (!this->fullbright);
+        {
+            g.engine_funcs->pfnSetFilterMode(0);
+        }
+
+        /*if (this->fullbright)
+        {
+            g.engine_funcs->pfnSetFilterMode(255);
+        }
+        else
+        {
+            g.engine_funcs->pfnSetFilterMode(0);
+        }*/
+        
+
+        old_fullbright = this->fullbright;
     }
 
     void removals::show_menu()
@@ -54,6 +102,11 @@ namespace features
         };
 
         // No own window, belongs to the misc window
+        ImGui::Checkbox("###No flash enabled", &this->no_flash);
+        ImGui::SameLine();
+        ImGui::SliderFloat("No flash", &this->no_flash_value, 0.0, 1.0);
+        ImGui::Checkbox("Fullbright", &this->fullbright);
+
         ImGui::Checkbox("Visual no recoil", &this->no_visual_recoil);
         ImGui::Checkbox("No recoil", &this->no_recoil_enabled);
         ImGui::Checkbox("###No spread enabled", &this->no_spread_enabled);

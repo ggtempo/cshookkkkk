@@ -1,14 +1,16 @@
 #pragma once
+#include <cpptoml.h>
 #include "../../Utils/globals.hpp"
 
 /*
     Anti aim modes
     Pitch:
-        Down (emotion)  -> 89
+        Down (emotion)  -> -88
         Down (unsafe)   -> 180
-        Up (emotion)    -> -89
+        Down (lisp)     -> max_short * 360
+        Up (emotion)    -> 88
         Up (unsafe)     -> -180
-
+        Up (lisp)       -> max_short * -360
 
     Yaw:
         Backwards       -> Yaw + 180
@@ -26,8 +28,11 @@ namespace features
         off,
         down_emotion,
         down_unsafe,
+        down_lisp,
         up_emotion,
-        up_unsafe
+        up_unsafe,
+        up_lisp,
+        user_defined
     };
 
     enum class aa_mode_yaw
@@ -36,7 +41,8 @@ namespace features
         backwards,
         left,
         right,
-        spin
+        spin,
+        user_defined
     };
 
     class anti_aim
@@ -51,10 +57,47 @@ namespace features
                 this->pitch_mode = aa_mode_pitch::off;
                 this->yaw_mode = aa_mode_yaw::off;
 
-                this->pitch_mode = aa_mode_pitch::off;
-                this->yaw_mode = aa_mode_yaw::off;
+                this->user_pitch = 0.0f;
+                this->user_yaw = 0.0f;
             }
         
+        public:
+            void load_from_config(std::shared_ptr<cpptoml::table> config)
+            {
+                // Get correct section
+                auto antiaim_table = config->get_table("anti-aim");
+
+                // If table doesn't exist, just create an empty one
+                if (!antiaim_table)
+                {
+                    antiaim_table = cpptoml::make_table();
+                }
+
+                // Get all values or their respective defaults
+                this->enabled = antiaim_table->get_as<bool>("enabled").value_or(false);
+                this->pitch_mode = static_cast<aa_mode_pitch>(antiaim_table->get_as<int>("pitch_mode").value_or(0));
+                this->yaw_mode = static_cast<aa_mode_yaw>(antiaim_table->get_as<int>("yaw_mode").value_or(0));
+                this->user_pitch = antiaim_table->get_as<double>("user_pitch").value_or(0.0);
+                this->user_yaw = antiaim_table->get_as<double>("user_yaw").value_or(0.0);
+            }
+
+            void save_to_config(std::ofstream& config_stream)
+            {
+                // Create section
+                config_stream << "[anti-aim]" << std::endl;
+
+                // Write all relevant values
+                config_stream
+                    << "enabled = "                     << (this->enabled ? "true" : "false")           << std::endl
+                    << "pitch_mode = "                  << static_cast<int>(this->pitch_mode)           << std::endl
+                    << "yaw_mode = "                    << static_cast<int>(this->yaw_mode)             << std::endl
+                    << "user_pitch = "                  << this->user_pitch                             << std::endl
+                    << "user_yaw = "                    << this->user_yaw                               << std::endl;
+
+                // Trailing newline
+                config_stream << std::endl;
+            }
+
         public:
             static anti_aim& instance()
             {
@@ -65,6 +108,8 @@ namespace features
             void create_move(float frametime, usercmd_t *cmd, int active);
             void show_menu();
 
+            void post_move_fix(usercmd_t* cmd, math::vec3& new_move);
+
         private:
             bool            enabled;
 
@@ -72,8 +117,12 @@ namespace features
             aa_mode_pitch   pitch_mode;
             aa_mode_yaw     yaw_mode;
 
-            aa_mode_pitch   fake_pitch_mode;
-            aa_mode_yaw     fake_yaw_mode;
+            float           user_pitch;
+            float           user_yaw;
 
+        private:
+            constexpr static auto emotion_angle = 88.0f;
+            constexpr static auto unsafe_angle = 180.0f;
+            constexpr static auto lisp_angle = std::numeric_limits<short>::max() * 360.0f;
     };
 }
