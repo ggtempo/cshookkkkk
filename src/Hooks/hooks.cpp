@@ -3,6 +3,7 @@
 #include "hooks.hpp"
 #include <glad/gl.h>
 
+#include "../Utils/utils.hpp"
 #include "../Utils/globals.hpp"
 #include "../Utils/math.hpp"
 
@@ -20,6 +21,10 @@
 #include "../HLSDK/Textures.hpp"
 #include "../Features/Utils/utils.hpp"
 #include "../Features/Config/config.hpp"
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "../Resources/stb_image.h"
+#include "../Resources/gear.hpp"
 
 #include "studio.hpp"
 #include "messages.hpp"
@@ -128,7 +133,30 @@ namespace hooks
             // Setup Platform/Renderer bindings
             ImGui_Impl_Init(g.main_window);check_gl_error();
 
-            // mirrorcam framebuffer / texture
+            // Gear icon load
+            int icon_width = 0, icon_height = 0;
+            int n = 0;
+            auto image = stbi_load_from_memory(gear_icon, gear_icon_length, &icon_width, &icon_height, &n, 0);
+
+            glGenTextures(1, &g.gear_icon_id);check_gl_error();
+            glBindTexture(GL_TEXTURE_2D, g.gear_icon_id);check_gl_error();
+
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);check_gl_error();	
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);check_gl_error();
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);check_gl_error();
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);check_gl_error();
+
+            int32_t mode = GL_RGB;                                                                 // The surface mode
+            if(n == 4) {
+                mode = GL_RGBA;
+            }
+
+            glTexImage2D(GL_TEXTURE_2D, 0, mode, icon_width, icon_height, 0, mode, GL_UNSIGNED_BYTE, image);check_gl_error();
+            glGenerateMipmap(GL_TEXTURE_2D);check_gl_error();                                       // Not sure if generating mipmaps for a 2D game is necessary
+
+            stbi_image_free(image);
+
+            // Mirrorcam framebuffer / texture
             // Generate necessary buffer
             glGenFramebuffers(1, &g.mirrorcam_buffer);check_gl_error();
             glBindFramebuffer(GL_FRAMEBUFFER, g.mirrorcam_buffer);check_gl_error();
@@ -241,7 +269,7 @@ namespace hooks
                 ImGui::SameLine();
                 ImGui::Separator();
 
-                float right_offset = 10;
+                float right_offset = 10 + 19;
 
                 {
                     auto size = ImGui::CalcTextSize("00:00:00");
@@ -258,6 +286,22 @@ namespace hooks
                     ImGui::SetCursorPos(ImVec2((title_bar_size.x / 2) - (size.x / 2), 0));
                     ImGui::Text("CSHook by DJ_Luigi");
                 }
+
+                ImGui::SetCursorPos(ImVec2(title_bar_size.x - 19.0f, 0.0f));
+                {
+                    if (ImGui::Button("###Settings", ImVec2(19.0f, 19.0f)))
+                    {
+                        g.settings_menu_enabled = !g.settings_menu_enabled;
+                    }
+
+                    auto draw_list = ImGui::GetWindowDrawList();
+                    if (draw_list)
+                    {
+                        draw_list->AddImage((void*)g.gear_icon_id, ImVec2(title_bar_size.x - 19.0f, 0.0f), ImVec2(title_bar_size.x, 19.0f));
+                    }
+                    //ImGui::ImageButton((void*)g.gear_icon_id, ImVec2(19.0f, 19.0f));
+                }
+                
 
                 ImGui::PopStyleVar();
 
@@ -293,57 +337,9 @@ namespace hooks
                         ImGui::Checkbox("Mirror cam", &g.mirror_cam_enabled);
                         ImGui::Checkbox("Third person", &g.third_person_enabled);
                         ImGui::Checkbox("Hide on screenshots", &g.hide_on_screenshot);
-                        if (ImGui::Button("Save test"))
-                        {
-                            config::save_config("default");
-                        }
                     ImGui::NextColumn();
                         features::removals::instance().show_menu();
                     ImGui::Columns(1);
-                }
-                ImGui::End();
-            }
-
-            if (g.menu_enabled)
-            {
-                static auto selected = 0;
-                if (ImGui::Begin("Player list"))
-                {
-                    auto local = g.engine_funcs->GetLocalPlayer();
-                    ImGui::ListBoxHeader("Players");
-                    {
-                        for (auto i = 1; i < g.engine_funcs->GetMaxClients(); i++)
-                        {
-                            auto entity = g.engine_funcs->GetEntityByIndex(i);
-
-                            if (!entity || !entity->index || entity == local || entity->index == local->index)
-                                continue;
-
-                            if (!g.player_data[entity->index].alive || g.player_data[entity->index].dormant)
-                                continue;
-
-                            auto sel = (i == selected);
-                            if (ImGui::Selectable(g.player_data[entity->index].name, sel))
-                                selected = i;
-                        }
-                    }
-                    ImGui::ListBoxFooter();
-
-                    if (selected)
-                    {
-                        auto entity = g.engine_funcs->GetEntityByIndex(selected);
-                        if (!entity || !entity->index || entity == local || entity->index == local->index ||
-                            !g.player_data[entity->index].alive || g.player_data[entity->index].dormant)
-                        {
-                            // Invalid
-                            selected = 0;
-                        }
-                        else
-                        {
-                            ImGui::Text("Origin: x:%f y:%f z:%f", entity->origin.x, entity->origin.y, entity->origin.z);
-                            ImGui::Text("View:   x:%f y:%f z:%f", entity->angles.x, entity->angles.y, entity->angles.z);
-                        }
-                    }
                 }
                 ImGui::End();
             }
@@ -356,6 +352,11 @@ namespace hooks
                     auto bottom_right = ImVec2(pos.x + size.x, pos.y + size.y);
                     ImGui::GetWindowDrawList()->AddImage((void*)g.mirrorcam_texture, pos, bottom_right, ImVec2(0, 1), ImVec2(1, 0));
                 ImGui::End();
+            }
+
+            if (g.settings_menu_enabled && g.menu_enabled)
+            {
+                features::config::instance().show_menu();
             }
         }
 
@@ -394,16 +395,23 @@ namespace hooks
 
         auto lp = g.engine_funcs->GetLocalPlayer();
 
-        if (!lp || !lp->player || !active)
-            return;
-
         // Reset create move
         g.send_packet = true;
 
-        auto original_angles = cmd->viewangles;
+        if (!lp || !lp->player || !active)
+            return;
 
-        utils::update_visibility();
+        // Update entity alive/dormant status
         utils::update_status();
+
+        // Only proceed if connected and alive
+        if (!g.connected || !g.local_player_data.alive)
+            return;
+
+        // Update entity visibility status
+        utils::update_visibility();
+
+        auto original_angles = cmd->viewangles;        
 
         if (cmd->buttons & IN_JUMP && !(g.player_move->flags & FL_ONGROUND) && g.bhop_enabled)
         {
@@ -771,7 +779,7 @@ namespace hooks
         g.original_screenshot = hook_command("screenshot", hk_screenshot);
         g.original_snapshot = hook_command("snapshot", hk_snapshot);
 
-        config::load_config("default");
+        features::config::instance().load_config();
     }
 
     cl_enginefunc_t* get_engine_funcs()

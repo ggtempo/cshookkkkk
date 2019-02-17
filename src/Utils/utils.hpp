@@ -16,7 +16,7 @@ namespace utils
         uint32_t pid;
     };
 
-    BOOL CALLBACK enum_proc_callback(HWND hwnd, LPARAM lparam)
+    inline BOOL CALLBACK enum_proc_callback(HWND hwnd, LPARAM lparam)
     {
         static auto is_main_window = [](HWND handle) {
             return GetWindow(handle, GW_OWNER) == (HWND)0 && IsWindowVisible(handle);
@@ -78,5 +78,51 @@ namespace utils
         {
             return std::nullopt;
         }
+    }
+
+    inline std::string remove_extension(std::string file_name)
+    {
+        auto position = file_name.find_last_of('.');
+        if (position != std::string::npos)
+        {
+            return file_name.substr(0, position);
+        }
+
+        return file_name;
+    }
+
+    inline std::string get_extension(const std::string& file_name)
+    {
+        auto position = file_name.find_last_of('.');
+        if (position != std::string::npos)
+        {
+            return file_name.substr(position);
+        }
+
+        return "";
+    }
+
+    inline std::vector<std::string> get_files_in_directory(const std::string& directory)
+    {
+        // Would love to use std::filesystem
+        // Unfortunately, mingw-w64 is broken and std::filesystem causes compile errors
+        std::vector<std::string> files;
+        auto matcher = directory + "*";
+        WIN32_FIND_DATAA data = {};
+
+        auto find = FindFirstFileA(matcher.c_str(), &data);
+
+        do
+        {
+            if (find != INVALID_HANDLE_VALUE)
+            {
+                std::string file_name(data.cFileName);
+
+                if (file_name.length() > 2)
+                    files.push_back(file_name);
+            }
+        } while(FindNextFileA(find, &data));
+
+        return files;
     }
 }

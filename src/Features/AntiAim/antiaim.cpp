@@ -6,6 +6,7 @@ namespace features
     void anti_aim::create_move(float frametime, usercmd_t *cmd, int active)
     {
         static auto& g = globals::instance();
+        auto local = g.engine_funcs->GetLocalPlayer();
 
         static bool send_switch = true;
 
@@ -18,13 +19,14 @@ namespace features
 
             auto correct_view = true;
 
-            if (this->fake_angles && g.send_packet)
+            auto fake_angles = this->fake_yaw_mode != aa_mode_yaw::off;
+            if (fake_angles && g.send_packet)
             {
                 send_switch = !send_switch;
                 g.send_packet = send_switch;
             }
             
-
+            // No need to account for pitch using fake angles
             // Determine the correct pitch angle
             switch (this->pitch_mode)
             {
@@ -61,29 +63,67 @@ namespace features
                     break;
             }
 
-            // Determine the correct yaw angle
-            switch (this->yaw_mode)
+
+            if (fake_angles && !send_switch)
             {
-                case aa_mode_yaw::backwards:
-                    new_view.y -= 180.0f;
-                    break;
-                
-                case aa_mode_yaw::left:
-                    new_view.y += 90.0f;
-                    break;
+                switch (this->fake_yaw_mode)
+                {
+                    case aa_mode_yaw::forwards:
+                        new_view.y -= 0.0f;
+                        break;
 
-                case aa_mode_yaw::right:
-                    new_view.y -= 90.0f;
-                    break;
+                    case aa_mode_yaw::backwards:
+                        new_view.y -= 180.0f;
+                        break;
+                    
+                    case aa_mode_yaw::left:
+                        new_view.y += 90;
+                        break;
 
-                case aa_mode_yaw::spin:
-                    new_view.y = angle;
-                    angle += 20;
-                    break;
+                    case aa_mode_yaw::right:
+                        new_view.y -= 90.0f;
+                        break;
 
-                case aa_mode_yaw::user_defined:
-                    new_view.y = this->user_yaw;
-                    break;
+                    case aa_mode_yaw::spin:
+                        new_view.y = angle - 180;
+                        angle += 20;
+                        break;
+
+                    case aa_mode_yaw::user_defined:
+                            new_view.y = this->user_fake_yaw;
+                        break;
+                }
+            }
+            else
+            {
+                // Determine the correct yaw angle
+                switch (this->yaw_mode)
+                {
+                    case aa_mode_yaw::forwards:
+                        new_view.y -= 0.0f;
+                        break;
+
+                    case aa_mode_yaw::backwards:
+                        new_view.y -= 180.0f;
+                        break;
+                    
+                    case aa_mode_yaw::left:
+                        new_view.y += 90.0f;
+                        break;
+
+                    case aa_mode_yaw::right:
+                        new_view.y -= 90.0f;
+                        break;
+
+                    case aa_mode_yaw::spin:
+                        new_view.y = angle;
+                        angle += 20;
+                        break;
+
+                    case aa_mode_yaw::user_defined:
+                        new_view.y = this->user_yaw;
+                        break;
+                }
             }
 
             // Wrap spinbot angle to 360 degrees
@@ -133,6 +173,7 @@ namespace features
 
         const static std::vector<option> yaw_modes = {
             {"Off", "Default yaw"},
+            {"Forwards", "Yaw is offset by 0 (Player is walking forwards)"},
             {"Backwards", "Yaw is offset by 180 (Player is walking backwards)"},
             {"Left", "Yaw is offset by +90 (Player is walking sideways)"},
             {"Right", "Yaw is offset by -90 (Player is walking sideways)"},
@@ -143,7 +184,6 @@ namespace features
         if (ImGui::Begin("Anti-Aim"))
         {
             ImGui::Checkbox("Enabled", &this->enabled);
-
             ImGui::Columns(2);
             
             if (ImGui::BeginCombo("Pitch mode", pitch_modes[(int)this->pitch_mode].name))
@@ -181,10 +221,29 @@ namespace features
                 ImGui::EndCombo();
             }
 
+            if (ImGui::BeginCombo("Fake yaw mode", yaw_modes[(int)this->fake_yaw_mode].name))
+            {
+                for (size_t i = 0; i < yaw_modes.size(); i++)
+                {
+                    bool selected = (i == (size_t)this->fake_yaw_mode);
+
+                    if (ImGui::Selectable(yaw_modes[i].name, selected))
+                        this->fake_yaw_mode = (aa_mode_yaw)i;    // If we selected this mode, remember it
+
+                    if (ImGui::IsItemActive() || ImGui::IsItemHovered())
+                        ImGui::SetTooltip(yaw_modes[i].tooltip);  // If we are hovering over the option, display it's tooltip
+
+                    if (selected)
+                        ImGui::SetItemDefaultFocus();   // Scroll to the currently selected otion
+                }
+                ImGui::EndCombo();
+            }
+
             ImGui::NextColumn();
 
             ImGui::SliderFloat("Custom pitch", &this->user_pitch, -89.0, 89.0);
-            ImGui::SliderFloat("Custom yaw", &this->user_yaw, 0.0, 360.0);
+            ImGui::SliderFloat("Custom yaw", &this->user_yaw, -180.0, 180.0);
+            ImGui::SliderFloat("Custom fake yaw", &this->user_fake_yaw, -180, 180);
             //ImGui::SliderFloat("Custom roll", &this->user_roll, 0.0, 360.0); ... once i figure out how to modify the roll angle
 
             ImGui::Columns(1);

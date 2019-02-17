@@ -37,7 +37,7 @@ namespace features
                 this->no_spread_enabled = removals_table->get_as<bool>("no_spread_enabled").value_or(false);;
                 this->no_recoil_enabled = removals_table->get_as<bool>("no_recoil_enabled").value_or(false);;
                 this->no_visual_recoil = removals_table->get_as<bool>("no_visual_recoil").value_or(false);;
-                this->no_spread_method = static_cast<no_spread_methods>(removals_table->get_as<int>("enabled").value_or(0));
+                this->no_spread_method = static_cast<no_spread_methods>(removals_table->get_as<int>("no_spread_method").value_or(0));
             }
 
             void save_to_config(std::ofstream& config_stream)

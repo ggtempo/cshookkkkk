@@ -20,7 +20,7 @@ set_target_properties(CSHook PROPERTIES LINK_SEARCH_START_STATIC 1)
 set_target_properties(CSHook PROPERTIES LINK_SEARCH_END_STATIC 1)
 set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libgcc -static-libstdc++ -static")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libgcc -static-libstdc++ -static ")
 
 # Debugging stuff
 add_compile_options(-Wall -Wextra -Wpedantic)

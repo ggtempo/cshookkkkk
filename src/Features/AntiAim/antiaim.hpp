@@ -38,6 +38,7 @@ namespace features
     enum class aa_mode_yaw
     {
         off,
+        forwards,
         backwards,
         left,
         right,
@@ -52,10 +53,9 @@ namespace features
             {
                 this->enabled = false;
 
-                this->fake_angles = false;
-
                 this->pitch_mode = aa_mode_pitch::off;
                 this->yaw_mode = aa_mode_yaw::off;
+                this->fake_yaw_mode = aa_mode_yaw::off;
 
                 this->user_pitch = 0.0f;
                 this->user_yaw = 0.0f;
@@ -77,8 +77,10 @@ namespace features
                 this->enabled = antiaim_table->get_as<bool>("enabled").value_or(false);
                 this->pitch_mode = static_cast<aa_mode_pitch>(antiaim_table->get_as<int>("pitch_mode").value_or(0));
                 this->yaw_mode = static_cast<aa_mode_yaw>(antiaim_table->get_as<int>("yaw_mode").value_or(0));
+                this->fake_yaw_mode = static_cast<aa_mode_yaw>(antiaim_table->get_as<int>("fake_yaw_mode").value_or(0));
                 this->user_pitch = antiaim_table->get_as<double>("user_pitch").value_or(0.0);
                 this->user_yaw = antiaim_table->get_as<double>("user_yaw").value_or(0.0);
+                this->user_fake_yaw = antiaim_table->get_as<double>("user_fake_yaw").value_or(0.0);
             }
 
             void save_to_config(std::ofstream& config_stream)
@@ -91,8 +93,10 @@ namespace features
                     << "enabled = "                     << (this->enabled ? "true" : "false")           << std::endl
                     << "pitch_mode = "                  << static_cast<int>(this->pitch_mode)           << std::endl
                     << "yaw_mode = "                    << static_cast<int>(this->yaw_mode)             << std::endl
+                    << "fake_yaw_mode = "               << static_cast<int>(this->fake_yaw_mode)        << std::endl
                     << "user_pitch = "                  << this->user_pitch                             << std::endl
-                    << "user_yaw = "                    << this->user_yaw                               << std::endl;
+                    << "user_yaw = "                    << this->user_yaw                               << std::endl
+                    << "user_fake_yaw = "               << this->user_fake_yaw                          << std::endl;
 
                 // Trailing newline
                 config_stream << std::endl;
@@ -116,9 +120,11 @@ namespace features
             bool            fake_angles;
             aa_mode_pitch   pitch_mode;
             aa_mode_yaw     yaw_mode;
+            aa_mode_yaw     fake_yaw_mode;
 
             float           user_pitch;
             float           user_yaw;
+            float           user_fake_yaw;
 
         private:
             constexpr static auto emotion_angle = 88.0f;

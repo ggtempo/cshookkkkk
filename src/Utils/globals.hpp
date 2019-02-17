@@ -26,6 +26,7 @@ class globals
             this->esp_menu_enabled = false;
             this->anti_aim_menu_enabled = false;
             this->misc_menu_enabled = false;
+            this->settings_menu_enabled = false;
 
             this->bhop_enabled = false;
             this->mirror_cam_enabled = false;
@@ -37,12 +38,14 @@ class globals
 
             this->studio_model_renderer_hook = nullptr;
 
+            this->connected = false;
             this->send_packet = true;
             this->first = true;
 
             this->catch_keys = false;
             this->captured_key = -1;
 
+            this->gear_icon_id = 0;
             this->mirrorcam_buffer = 0;
             this->mirrorcam_texture = 0;
             this->mirrorcam_depth_buffer = 0;
@@ -67,6 +70,7 @@ class globals
         bool esp_menu_enabled;
         bool anti_aim_menu_enabled;
         bool misc_menu_enabled;
+        bool settings_menu_enabled;
 
         // Hack settings        
         bool bhop_enabled;
@@ -79,6 +83,9 @@ class globals
 
         // Aimbot fov copy
         float aim_fov;
+
+        // Connected
+        bool connected;
 
         // SendPacket
         bool send_packet;
@@ -130,6 +137,7 @@ class globals
         int captured_key;
 
         // Opengl
+        unsigned int gear_icon_id;
         unsigned int mirrorcam_buffer;
         unsigned int mirrorcam_texture;
         unsigned int mirrorcam_depth_buffer;

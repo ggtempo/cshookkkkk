@@ -1,5 +1,6 @@
 #pragma once
 #include "../../Utils/globals.hpp"
+#include "../../HLSDK/Net.hpp"
 
 namespace utils
 {
@@ -134,6 +135,11 @@ namespace utils
     {
         static auto& g = globals::instance();
         auto local = g.engine_funcs->GetLocalPlayer();
+
+        net_status_s status = {};
+        g.engine_funcs->pNetAPI->Status(&status);
+
+        g.connected = status.connected;
 
         // Reset everyone as dormant
         for (auto& [key, value] : g.player_data)

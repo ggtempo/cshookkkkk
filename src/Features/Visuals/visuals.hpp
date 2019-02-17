@@ -42,7 +42,7 @@ namespace features
                 // Get all values or their respective defaults
                 this->chams = visuals_table->get_as<bool>("chams").value_or(false);
                 this->chams_team = visuals_table->get_as<bool>("chams").value_or(false);
-                this->chams_mode = static_cast<chams_modes>(visuals_table->get_as<bool>("chams_mode").value_or(0));
+                this->chams_mode = static_cast<chams_modes>(visuals_table->get_as<int>("chams_mode").value_or(0));
                 this->box_esp = visuals_table->get_as<bool>("box_esp").value_or(false);
                 this->box_esp_team = visuals_table->get_as<bool>("box_esp_team").value_or(false);
                 this->name_esp = visuals_table->get_as<bool>("name_esp").value_or(false);

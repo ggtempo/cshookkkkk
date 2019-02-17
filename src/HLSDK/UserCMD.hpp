@@ -38,3 +38,14 @@ typedef struct usercmd_s
 	int		impact_index;
 	vec3_t	impact_position;
 } usercmd_t;
+
+typedef struct runcmd_s
+{
+	usercmd_t cmd;
+	float senttime;
+	float receivedtime;
+	float frame_lerp;
+	int processedfuncs;
+	int heldback;
+	int sendsize;
+} runcmd_t;
