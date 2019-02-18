@@ -25,7 +25,12 @@ namespace features
                 send_switch = !send_switch;
                 g.send_packet = send_switch;
             }
-            
+
+            if (this->at_target)
+            {
+                new_view.y = this->find_angle_to_nearest_target();
+            }
+
             // No need to account for pitch using fake angles
             // Determine the correct pitch angle
             switch (this->pitch_mode)
@@ -68,8 +73,14 @@ namespace features
             {
                 switch (this->fake_yaw_mode)
                 {
+                    case aa_mode_yaw::off:
+                        // Keep our current viewangles
+                        new_view.y = cmd->viewangles.y;
+                        break;
+
                     case aa_mode_yaw::forwards:
-                        new_view.y -= 0.0f;
+                        // Keep our current viewangles
+                        new_view.y += 0;
                         break;
 
                     case aa_mode_yaw::backwards:
@@ -89,6 +100,12 @@ namespace features
                         angle += 20;
                         break;
 
+                    case aa_mode_yaw::edge:
+                    {
+                        new_view.y = this->find_angle_to_nearest_wall();
+                        break;
+                    }
+
                     case aa_mode_yaw::user_defined:
                             new_view.y = this->user_fake_yaw;
                         break;
@@ -99,8 +116,14 @@ namespace features
                 // Determine the correct yaw angle
                 switch (this->yaw_mode)
                 {
+                    case aa_mode_yaw::off:
+                        // Keep our current viewangles
+                        new_view.y = cmd->viewangles.y;
+                        break;
+
                     case aa_mode_yaw::forwards:
-                        new_view.y -= 0.0f;
+                        // Keep our current viewangles
+                        new_view.y += 0;
                         break;
 
                     case aa_mode_yaw::backwards:
@@ -119,6 +142,16 @@ namespace features
                         new_view.y = angle;
                         angle += 20;
                         break;
+
+                    case aa_mode_yaw::edge:
+                    {
+                        // If we have fake angles enabled, show our fake model to the enemy, hide our shootable model
+                        if (fake_angles)
+                            new_view.y = 180 + this->find_angle_to_nearest_wall();
+                        else
+                            new_view.y = this->find_angle_to_nearest_wall();
+                        break;
+                    }
 
                     case aa_mode_yaw::user_defined:
                         new_view.y = this->user_yaw;
@@ -178,12 +211,14 @@ namespace features
             {"Left", "Yaw is offset by +90 (Player is walking sideways)"},
             {"Right", "Yaw is offset by -90 (Player is walking sideways)"},
             {"Spin", "Yaw is spinning"},
+            {"Edge", "Tries to hide head behind the wall"},
             {"Custom", "User defined"}
         };
 
         if (ImGui::Begin("Anti-Aim"))
         {
             ImGui::Checkbox("Enabled", &this->enabled);
+            ImGui::Checkbox("At target", &this->at_target);
             ImGui::Columns(2);
             
             if (ImGui::BeginCombo("Pitch mode", pitch_modes[(int)this->pitch_mode].name))
@@ -250,4 +285,91 @@ namespace features
         }
         ImGui::End();
     }
+
+    float anti_aim::find_angle_to_nearest_wall()
+    {
+        constexpr auto edge_steps = 8;
+        constexpr auto edge_step = 360.0f  / edge_steps;
+
+        static auto& g = globals::instance();
+
+        auto start = g.player_move->origin + g.player_move->view_ofs;
+        auto min_distance = 999999.0f;
+        auto best_yaw = 0.0f;
+
+        for (auto i = 0; i < edge_steps; i++)
+        {
+            // Get current target yaw
+            auto target_yaw = edge_step * i;
+            // Get directional vector from angle
+            auto direction = math::vec3{0.0, target_yaw, 0.0}.normalize_angle().to_vector();
+
+            // Probably overkill
+            auto end = start + (direction * 8192.0);
+
+            // Trace against the world
+            pmtrace_t trace = {};
+            g.engine_funcs->pEventAPI->EV_SetTraceHull(2);
+            g.engine_funcs->pEventAPI->EV_PlayerTrace(start, end, PM_WORLD_ONLY, -1, &trace);
+
+            auto distance = 8192.0 * trace.fraction;
+
+            if (distance < min_distance)
+            {
+                // If we find a better distance, remember it
+                min_distance = distance;
+                best_yaw = target_yaw;
+            }
+        }
+
+        // Return best yaw
+        return best_yaw;
+    }
+
+    float anti_aim::find_angle_to_nearest_target()
+    {
+        constexpr auto edge_steps = 8;
+        constexpr auto edge_step = 360.0f  / edge_steps;
+
+        static auto& g = globals::instance();
+
+        auto local = g.engine_funcs->GetLocalPlayer();
+        auto start = g.player_move->origin;
+        auto min_distance = 999999.0f;
+        auto best_yaw = 0.0f;
+
+        for (auto i = 0; i < g.engine_funcs->GetMaxClients(); i++)
+        {
+            auto entity = g.engine_funcs->GetEntityByIndex(i);
+
+            // Don't try to use invalid entities
+            if (!entity || !entity->index || !local || entity == local || entity->index == local->index)
+                continue;
+
+            if (!g.player_data[entity->index].alive || g.player_data[entity->index].dormant)
+                continue;
+
+            auto distance = (entity->curstate.origin - start).length();
+
+            // Enemies are "100 times closer" than allies
+            if (g.player_data[entity->index].team == g.local_player_data.team)
+                distance *= 100;
+
+            auto target_yaw = (entity->curstate.origin - start).normalize()
+                                                               .to_angles()
+                                                               .normalize_angle()
+                                                               .y;
+
+            if (distance < min_distance)
+            {
+                // If we find a better distance, remember it
+                min_distance = distance;
+                best_yaw = target_yaw;
+            }
+        }
+
+        // Return best yaw
+        return best_yaw;
+    }
 }
+

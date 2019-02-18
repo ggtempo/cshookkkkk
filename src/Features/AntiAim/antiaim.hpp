@@ -13,6 +13,7 @@
         Up (lisp)       -> max_short * -360
 
     Yaw:
+        Forwards        -> Yaw + 0 (Player is lookig where he is looking)
         Backwards       -> Yaw + 180
         Left            -> Yaw + 90
         Right           -> Yaw - 90
@@ -43,6 +44,7 @@ namespace features
         left,
         right,
         spin,
+        edge,
         user_defined
     };
 
@@ -75,6 +77,7 @@ namespace features
 
                 // Get all values or their respective defaults
                 this->enabled = antiaim_table->get_as<bool>("enabled").value_or(false);
+                this->at_target = antiaim_table->get_as<bool>("at_target").value_or(false);
                 this->pitch_mode = static_cast<aa_mode_pitch>(antiaim_table->get_as<int>("pitch_mode").value_or(0));
                 this->yaw_mode = static_cast<aa_mode_yaw>(antiaim_table->get_as<int>("yaw_mode").value_or(0));
                 this->fake_yaw_mode = static_cast<aa_mode_yaw>(antiaim_table->get_as<int>("fake_yaw_mode").value_or(0));
@@ -91,6 +94,7 @@ namespace features
                 // Write all relevant values
                 config_stream
                     << "enabled = "                     << (this->enabled ? "true" : "false")           << std::endl
+                    << "at_target = "                   << (this->at_target ? "true" : "false")         << std::endl
                     << "pitch_mode = "                  << static_cast<int>(this->pitch_mode)           << std::endl
                     << "yaw_mode = "                    << static_cast<int>(this->yaw_mode)             << std::endl
                     << "fake_yaw_mode = "               << static_cast<int>(this->fake_yaw_mode)        << std::endl
@@ -115,9 +119,13 @@ namespace features
             void post_move_fix(usercmd_t* cmd, math::vec3& new_move);
 
         private:
-            bool            enabled;
+            float find_angle_to_nearest_wall();
+            float find_angle_to_nearest_target();
 
-            bool            fake_angles;
+        private:
+            bool            enabled;
+            bool            at_target;
+
             aa_mode_pitch   pitch_mode;
             aa_mode_yaw     yaw_mode;
             aa_mode_yaw     fake_yaw_mode;
