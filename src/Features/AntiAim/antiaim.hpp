@@ -119,8 +119,8 @@ namespace features
             void post_move_fix(usercmd_t* cmd, math::vec3& new_move);
 
         private:
-            float find_angle_to_nearest_wall();
-            float find_angle_to_nearest_target();
+            float find_angle_to_nearest_wall(float current_yaw);
+            float find_angle_to_nearest_target(float current_yaw);
 
         private:
             bool            enabled;

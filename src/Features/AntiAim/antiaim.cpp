@@ -28,7 +28,7 @@ namespace features
 
             if (this->at_target)
             {
-                new_view.y = this->find_angle_to_nearest_target();
+                new_view.y = this->find_angle_to_nearest_target(cmd->viewangles.y);
             }
 
             // No need to account for pitch using fake angles
@@ -102,7 +102,7 @@ namespace features
 
                     case aa_mode_yaw::edge:
                     {
-                        new_view.y = this->find_angle_to_nearest_wall();
+                        new_view.y = this->find_angle_to_nearest_wall(cmd->viewangles.y);
                         break;
                     }
 
@@ -147,9 +147,9 @@ namespace features
                     {
                         // If we have fake angles enabled, show our fake model to the enemy, hide our shootable model
                         if (fake_angles)
-                            new_view.y = 180 + this->find_angle_to_nearest_wall();
+                            new_view.y = 180 + this->find_angle_to_nearest_wall(cmd->viewangles.y);
                         else
-                            new_view.y = this->find_angle_to_nearest_wall();
+                            new_view.y = this->find_angle_to_nearest_wall(cmd->viewangles.y);
                         break;
                     }
 
@@ -286,7 +286,7 @@ namespace features
         ImGui::End();
     }
 
-    float anti_aim::find_angle_to_nearest_wall()
+    float anti_aim::find_angle_to_nearest_wall(float current_yaw)
     {
         constexpr auto edge_steps = 8;
         constexpr auto edge_step = 360.0f  / edge_steps;
@@ -295,7 +295,7 @@ namespace features
 
         auto start = g.player_move->origin + g.player_move->view_ofs;
         auto min_distance = 999999.0f;
-        auto best_yaw = 0.0f;
+        auto best_yaw = current_yaw;
 
         for (auto i = 0; i < edge_steps; i++)
         {
@@ -326,7 +326,7 @@ namespace features
         return best_yaw;
     }
 
-    float anti_aim::find_angle_to_nearest_target()
+    float anti_aim::find_angle_to_nearest_target(float current_yaw)
     {
         constexpr auto edge_steps = 8;
         constexpr auto edge_step = 360.0f  / edge_steps;
@@ -336,7 +336,7 @@ namespace features
         auto local = g.engine_funcs->GetLocalPlayer();
         auto start = g.player_move->origin;
         auto min_distance = 999999.0f;
-        auto best_yaw = 0.0f;
+        auto best_yaw = current_yaw;
 
         for (auto i = 0; i < g.engine_funcs->GetMaxClients(); i++)
         {

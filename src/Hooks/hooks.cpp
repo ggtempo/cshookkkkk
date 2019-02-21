@@ -404,6 +404,9 @@ namespace hooks
         // Update entity alive/dormant status
         utils::update_status();
 
+        // Update local player velocity
+        g.local_player_data.velocity = g.player_move->velocity;
+
         // Only proceed if connected and alive
         if (!g.connected || !g.local_player_data.alive)
             return;
@@ -478,9 +481,6 @@ namespace hooks
 
         if (!runfuncs)
             return;
-
-        // Update local player
-        g.local_player_data.velocity = to->playerstate.velocity;
 
         // Update local weapon
         auto info = get_weapon_info((custom::weapon_id)to->client.m_iId);
@@ -598,6 +598,37 @@ namespace hooks
         original_func(pmove);
     }
 
+    int __fastcall hk_StudioDrawPlayer(CStudioModelRenderer* ecx, void* edx, int flags, entity_state_s* pplayer)
+    {
+        using studio_draw_player_fn = int(__thiscall*)(CStudioModelRenderer* ecx, int flags, entity_state_s* pplayer);
+        static auto& g = globals::instance();
+        static auto original_func = g.studio_model_renderer_hook->get_original_vfunc<studio_draw_player_fn>(25);
+
+        g.engine_funcs->Con_Printf("Draw player\n");
+
+        //pplayer->angles.y = 0;
+
+        if (g.engine_studio->GetCurrentEntity() == g.engine_funcs->GetLocalPlayer())
+        {
+            auto original_return = original_func(ecx, flags, pplayer);
+
+            auto entity = g.engine_studio->GetCurrentEntity();
+            auto info = g.engine_studio->PlayerInfo(entity->index);
+            auto original_entity = *entity;
+
+            entity->angles.y += 180;
+            info->gaityaw += 180;
+
+            original_func(ecx, flags, pplayer);
+
+            *entity = original_entity;
+            return original_return;
+        }
+
+        //original_func(ecx, flags, pplayer);
+        return original_func(ecx, flags, pplayer);
+    }
+
     uint32_t find_client_functions()
     {
         DWORD dw_export_pointer = memory::find_pattern("hw.dll", { 0x68, 0x00, 0x00, 0x00, 0x00, 0xE8, 0x00, 0x00, 0x00, 0x00, 0x83, 0xC4, 0x0C, 0xE8, 0x00, 0x00, 0x00, 0x00, 0xE8, 0x00, 0x00, 0x00, 0x00 }, 1, false);
@@ -659,6 +690,7 @@ namespace hooks
         // Hook vtable functions
         g.studio_model_renderer_hook = new memory::vmt_hook(studio_model_renderer);
         g.studio_model_renderer_hook->hook_vfunc(reinterpret_cast<void*>(hk_studio_render_model), 18);
+        //g.studio_model_renderer_hook->hook_vfunc(reinterpret_cast<void*>(hk_StudioDrawPlayer), 25);
         g.studio_model_renderer_hook->hook();
     }
 
