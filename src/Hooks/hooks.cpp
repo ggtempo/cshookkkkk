@@ -806,6 +806,7 @@ namespace hooks
         // Hook messages
         g.original_team_info = hook_message("TeamInfo", hk_team_info);
         g.original_score_attrib = hook_message("ScoreAttrib", hk_score_attrib);
+        g.original_set_fov = hook_message("SetFOV", hk_set_fov);
 
         // Hook commands
         g.original_screenshot = hook_command("screenshot", hk_screenshot);

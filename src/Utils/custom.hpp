@@ -148,21 +148,30 @@ namespace custom
 
             case weapon_id::weapon_awp:
             {
+                auto spread = 0.0;
                 if (grounded)
                 {
                     if (velocity > 140)
-                        return 0.25;
+                        spread = 0.25;
                     else if (velocity > 10)
-                        return 0.1;
+                        spread = 0.1;
                     else if (ducking)
-                        return 0.0;
+                        spread = 0.0;
                     else
-                        return 0.001;
+                        spread = 0.001;
                 }
                 else
                 {
-                    return 0.85;
+                    spread = 0.85;
                 }
+
+                if (fov == 90)
+                {
+                    // Not scoped in, bullets are less precise
+                    spread += 0.08;
+                }
+
+                return spread;
             }
 
             case weapon_id::weapon_deagle:
@@ -234,20 +243,28 @@ namespace custom
 
             case weapon_id::weapon_g3sg1:
             {
+                auto spread = 0.0f;
+
                 if (grounded)
                 {
                     if (velocity > 0)
-                        return 0.15;
+                        spread = 0.15;
                     else if (ducking)
-                        return 0.035;
+                        spread = 0.035;
                     else
-                        return 0.055;
+                        spread = 0.055;
                 }
                 else
                 {
-                    return 0.45;
+                    spread = 0.45;
+                }
+
+                if (fov == 90)
+                {
+                    spread += 0.025;
                 }
                 
+                return spread;
             }
 
             case weapon_id::weapon_galil:
@@ -390,36 +407,54 @@ namespace custom
 
             case weapon_id::weapon_scout:
             {
+                auto spread = 0.0f;
+
                 if (grounded)
                 {
                     if (velocity > 170)
-                        return 0.075;
+                        spread = 0.075;
                     else if (ducking)
-                        return 0.0;
+                        spread = 0.0;
                     else
-                        return 0.007;
+                        spread = 0.007;
                 }
                 else
                 {
-                    return 0.2;
+                    spread = 0.2;
                 }
+
+                if (fov == 90)
+                {
+                    spread += 0.025;
+                }
+
+                return spread;
             }
 
             case weapon_id::weapon_sg550:
             {
+                auto spread = 0.0;
+
                 if (grounded)
                 {
                     if (velocity > 0)
-                        return 0.15;
+                        spread = 0.15;
                     else if (ducking)
-                        return (0.04) * (1 - accuracy);
+                        spread = (0.04) * (1 - accuracy);
                     else
-                        return (0.05) * (1 - accuracy);
+                        spread = (0.05) * (1 - accuracy);
                 }
                 else
                 {
-                    return (0.45) * (1 - accuracy);
+                    spread = (0.45) * (1 - accuracy);
                 }
+
+                if (fov == 90)
+                {
+                    spread += 0.025;
+                }
+
+                return spread;
             }
 
             case weapon_id::weapon_sg552:

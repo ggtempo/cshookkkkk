@@ -93,4 +93,20 @@ namespace hooks
 
         return original_func(name, size, buffer);
     }
+
+    int hk_set_fov(const char *name, int size, void *buffer)
+    {
+        using set_fov_fn = int(*)(const char*, int, void*);
+
+        static auto& g = globals::instance();
+        static auto original_func = reinterpret_cast<set_fov_fn>(g.original_set_fov);
+
+        BEGIN_READ(buffer, size);
+
+        auto fov = READ_BYTE();
+
+        g.fov = fov;
+
+        return original_func(name, size, buffer);
+    }
 }

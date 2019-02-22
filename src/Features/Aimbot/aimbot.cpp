@@ -16,6 +16,12 @@ namespace features
             vec3_t angles = cmd->viewangles;
             vec3_t forward = angles.to_vector() * 8192;
 
+            if (this->prediction)
+            {
+                // Move players head in the direction the player is moving
+                start += g.local_player_data.velocity * frametime;
+            }
+
             // Get the best target
             auto best_target = this->find_best_target(start, angles, frametime);
 
@@ -266,7 +272,7 @@ namespace features
                     vec3_t center = (transformed_bbmin + transformed_bbmax) * 0.5;
 
                     // If the player cares about correcting for 1 tick old hitbox positions, move them by the velocity
-                    if (prediction)
+                    if (this->prediction)
                     {
                         // Could possibly be incorrect
                         // The hitbox could be pushed into the wall

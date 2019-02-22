@@ -51,6 +51,8 @@ class globals
             this->mirrorcam_depth_buffer = 0;
 
             this->aim_fov = 0;
+
+            this->fov = 90.0;
         }
 
     public:
@@ -111,6 +113,7 @@ class globals
         uintptr_t           original_damage;
         uintptr_t           original_studio_check_bbox;
         uintptr_t           original_can_packet;
+        uintptr_t           original_set_fov;
 
         uintptr_t           original_screenshot;
         uintptr_t           original_snapshot;
@@ -131,6 +134,7 @@ class globals
         custom::player_data local_player_data;
         std::unordered_map<int, custom::player_data> player_data;
         math::vec3 punch_angles;
+        float fov;
 
         // Key catching
         bool catch_keys;

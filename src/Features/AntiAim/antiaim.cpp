@@ -10,7 +10,7 @@ namespace features
 
         static bool send_switch = true;
 
-        if (this->enabled && !(cmd->buttons & IN_ATTACK) && (g.player_move->movetype != MOVETYPE_FLY))
+        if (this->enabled && !(cmd->buttons & (IN_ATTACK | IN_USE)) && (g.player_move->movetype != MOVETYPE_FLY) && !custom::is_grenade(g.local_player_data.weapon.id))
         {
             static float angle = 0.0;
             auto view = cmd->viewangles;

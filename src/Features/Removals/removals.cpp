@@ -159,7 +159,9 @@ namespace features
             float velocity = math::vec3(g.local_player_data.velocity.x, g.local_player_data.velocity.y, 0.0f).length();
             auto spread = custom::get_spread(g.local_player_data.weapon.id, info->m_flAccuracy, velocity,
                             g.player_move->flags & FL_ONGROUND, g.player_move->flags & FL_DUCKING,
-                            lp->curstate.fov, info->m_iWeaponState);
+                            g.fov, info->m_iWeaponState);
+
+            g.engine_funcs->Con_Printf("FOV: %f\n", g.fov);
             unsigned int shared_rand = g.local_player_data.weapon.seed;
 
             math::vec3 view_angles = cmd->viewangles.normalize_angle();
@@ -201,7 +203,7 @@ namespace features
             float velocity = math::vec3(g.local_player_data.velocity.x, g.local_player_data.velocity.y, 0.0f).length();
             auto spread = custom::get_spread(g.local_player_data.weapon.id, info->m_flAccuracy, velocity,
                             g.player_move->flags & FL_ONGROUND, g.player_move->flags & FL_DUCKING,
-                            0.0f, info->m_iWeaponState);
+                            g.fov, info->m_iWeaponState);
             unsigned int shared_rand = g.local_player_data.weapon.seed;
 
             math::vec3 view_angles = cmd->viewangles.normalize_angle();
