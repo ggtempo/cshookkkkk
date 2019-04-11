@@ -337,6 +337,12 @@ namespace hooks
                         ImGui::Checkbox("Mirror cam", &g.mirror_cam_enabled);
                         ImGui::Checkbox("Third person", &g.third_person_enabled);
                         ImGui::Checkbox("Hide on screenshots", &g.hide_on_screenshot);
+
+                        float float_backtrack_time = g.backtrack_amount;
+                        ImGui::SliderFloat("Backtrack time", &float_backtrack_time, 0, 99999);
+                        g.backtrack_amount = float_backtrack_time;
+
+
                     ImGui::NextColumn();
                         features::removals::instance().show_menu();
                     ImGui::Columns(1);
@@ -773,6 +779,69 @@ namespace hooks
         return 0;
     }
 
+    void pre_write_packet_time()
+    {
+        // Set host.realtime back to the original value
+        static auto& g = globals::instance();
+
+        g.engine_funcs->Con_Printf("Pre write packet time!\n");
+    }
+
+    void cl_compute_packet_loss()
+    {
+        using cl_compute_packet_loss_fn = void(*)(void);
+        static auto& g = globals::instance();
+        static auto original_func = reinterpret_cast<cl_compute_packet_loss_fn>(g.original_cl_compute_packet_loss);
+
+        // Call original func
+        original_func();
+
+        // Then modify host realtime
+        g.engine_time_backup = *g.engine_time;
+
+        if (GetAsyncKeyState(VK_MENU))
+        {
+            *g.engine_time -= g.backtrack_amount;
+        }
+    }
+
+    void post_write_packet_time()
+    {
+        static auto& g = globals::instance();
+
+        // Restore host realtime
+
+        g.engine_funcs->Con_Printf("Engine time: %f, Backup: %f\n", *g.engine_time, g.engine_time_backup);
+        *g.engine_time = g.engine_time_backup;
+    }
+
+    void hook_writepacket()
+    {
+        static auto& g = globals::instance();
+        g.engine_funcs->Con_Printf("Hooking WritePacket\n");
+        // Hook before and after writing packet
+        
+        auto cl_write_packet_loc = memory::find_location("hw.dll", {0x53, 0x55, 0x56, 0x57, 0x33, 0xff, 0x3b, 0xc7, 0x0f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x83, 0xf8, 0x01}, -11);
+        auto cl_compute_packet_loss_loc = memory::find_location("hw.dll", {0x55, 0x8b, 0xec, 0x83, 0xe4, 0xf8, 0x83, 0xec, 0x0c, 0xdd, 0x05, 0x00, 0x00, 0x00, 0x00, 0xdc, 0x1d, 0x00, 0x00, 0x00, 0x00});
+        
+        // Host realtime
+        //g.host_realtime = *(double**)(reinterpret_cast<uintptr_t>(cl_compute_packet_loss_loc) + 0xB);
+
+        // Before
+        // cl_write_packet_loc + 0x7A (6 bytes)
+        // cl_compute_packet_loss
+        g.original_cl_compute_packet_loss = memory::hook_func2(reinterpret_cast<uintptr_t>(cl_compute_packet_loss_loc), reinterpret_cast<uintptr_t>(cl_compute_packet_loss), 6);
+
+        // After
+        // cl_write_packet_loc + 0xE1 (5 bytes)
+        memory::hook_func(reinterpret_cast<uintptr_t>(cl_write_packet_loc) + 0xE1, reinterpret_cast<uintptr_t>(post_write_packet_time), 5);
+
+        g.engine_funcs->Con_Printf("Found CL_WritePacket @ 0x%X\n", cl_write_packet_loc);
+        g.engine_funcs->Con_Printf("Found CL_ComputePacketLoss @ 0x%X\n", cl_compute_packet_loss_loc);
+
+        //memory::hook_func(reinterpret_cast<uintptr_t>(ců_write_packet_loc), reinterpret_cast<uintptr_t>(post_write_packet), 5);
+    }
+
     void init()
     {
         /*AllocConsole();
@@ -792,6 +861,7 @@ namespace hooks
         hook_client();
         hook_studio();
         hook_gl();
+        hook_writepacket();
 
         g.engine_time = *(double**)(g.engine_funcs->pNetAPI->Status + 0x84);
 

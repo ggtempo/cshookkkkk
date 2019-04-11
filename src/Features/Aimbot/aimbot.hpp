@@ -89,6 +89,12 @@ namespace features
                 // Get all target hitboxes
                 auto hitboxes = aimbot_table->get_array_of<int64_t>("target_hitboxes").value_or(std::vector<int64_t>{});
 
+                // Reset all of the hitboxes
+                for (auto& hitbox : this->target_hitboxes)
+                {
+                    hitbox.second = false;
+                }
+
                 // Set each target hitbox
                 for (auto hitbox : hitboxes)
                 {

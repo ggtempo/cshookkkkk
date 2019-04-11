@@ -53,6 +53,7 @@ class globals
             this->aim_fov = 0;
 
             this->fov = 90.0;
+            this->backtrack_amount = 0.0;
         }
 
     public:
@@ -92,6 +93,9 @@ class globals
         // SendPacket
         bool send_packet;
 
+        // Backtrack amount
+        double backtrack_amount;
+
         // Module base path
         std::string base_path;
 
@@ -118,10 +122,14 @@ class globals
         uintptr_t           original_screenshot;
         uintptr_t           original_snapshot;
 
+        uintptr_t           original_cl_compute_packet_loss;
+
         globalvars_t*       game_globals;
         globalvars_t**      game_globals_2;
 
         double*             engine_time;
+        double              engine_time_backup;
+        double*             host_realtime;
 
         uintptr_t           get_weapon_info;
 
