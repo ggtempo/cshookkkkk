@@ -144,8 +144,8 @@ namespace features
         public:
             static aimbot& instance()
             {
-                static aimbot aa;
-                return aa;
+                static aimbot instance;
+                return instance;
             }
 
             void create_move(float frametime, usercmd_t *cmd, int active);

@@ -1,26 +1,26 @@
 #pragma once
 #include <cstring>
 #include <Windows.h>
-#include "hooks.hpp"
+#include "../hooks.hpp"
 #include <glad/gl.h>
 
-#include "../Utils/globals.hpp"
-#include "../Utils/math.hpp"
+#include "../../Utils/globals.hpp"
+#include "../../Utils/math.hpp"
 
-#include "../ImGui/imgui.h"
-#include "../ImGui/imgui_impl.h"
+#include "../../ImGui/imgui.h"
+#include "../../ImGui/imgui_impl.h"
 
-#include "../HLSDK/Parsemsg.hpp"
+#include "../../HLSDK/Parsemsg.hpp"
 
-#include "../Features/AntiAim/antiaim.hpp"
-#include "../Features/Triggerbot/triggerbot.hpp"
-#include "../Features/Visuals/visuals.hpp"
-#include "../Features/Aimbot/aimbot.hpp"
-#include "../Features/Removals/removals.hpp"
-#include "../HLSDK/Weapons.hpp"
-#include "../HLSDK/Textures.hpp"
+#include "../../Features/AntiAim/antiaim.hpp"
+#include "../../Features/Triggerbot/triggerbot.hpp"
+#include "../../Features/Visuals/visuals.hpp"
+#include "../../Features/Aimbot/aimbot.hpp"
+#include "../../Features/Removals/removals.hpp"
+#include "../../HLSDK/Weapons.hpp"
+#include "../../HLSDK/Textures.hpp"
 
-#include "../Features/Utils/utils.hpp"
+#include "../../Features/Utils/utils.hpp"
 
 namespace hooks
 {
@@ -44,6 +44,33 @@ namespace hooks
         {
             features::visuals::instance().studio_render_model(ecx);
         }
+    }
+
+    int __fastcall hk_StudioDrawPlayer(CStudioModelRenderer* ecx, void* edx, int flags, entity_state_s* pplayer)
+    {
+        using studio_draw_player_fn = int(__thiscall*)(CStudioModelRenderer* ecx, int flags, entity_state_s* pplayer);
+        static auto& g = globals::instance();
+        static auto original_func = g.studio_model_renderer_hook->get_original_vfunc<studio_draw_player_fn>(25);
+
+        if (g.engine_studio->GetCurrentEntity() == g.engine_funcs->GetLocalPlayer())
+        {
+            auto original_return = original_func(ecx, flags, pplayer);
+
+            auto entity = g.engine_studio->GetCurrentEntity();
+            auto info = g.engine_studio->PlayerInfo(entity->index);
+            auto original_entity = *entity;
+
+            entity->angles.y += 180;
+            info->gaityaw += 180;
+
+            original_func(ecx, flags, pplayer);
+
+            *entity = original_entity;
+            return original_return;
+        }
+
+        //original_func(ecx, flags, pplayer);
+        return original_func(ecx, flags, pplayer);
     }
 
     void hk_studio_entity_light(alight_s* plight)

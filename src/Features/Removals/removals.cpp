@@ -1,5 +1,7 @@
 #include "removals.hpp"
+#include "../Utils/utils.hpp"
 #include "../../ImGui/imgui.h"
+#include "../Miscelaneous/miscelaneous.hpp"
 
 namespace features
 {
@@ -66,7 +68,7 @@ namespace features
 
         static auto old_fullbright = this->fullbright;
 
-        if (this->fullbright && (!g.hide_on_screenshot || !(g.taking_screenshot || g.taking_snapshot)))
+        if (this->fullbright && features::miscelaneous::instance().can_show())
         {
             g.engine_funcs->pfnSetFilterMode(255);
         }
@@ -155,13 +157,12 @@ namespace features
             !g.local_player_data.weapon.in_reload)
         {
             // Get necessary info
-            auto info = get_weapon_info((custom::weapon_id)g.local_player_data.weapon.id);
+            auto info = utils::get_weapon_info((custom::weapon_id)g.local_player_data.weapon.id);
             float velocity = math::vec3(g.local_player_data.velocity.x, g.local_player_data.velocity.y, 0.0f).length();
             auto spread = custom::get_spread(g.local_player_data.weapon.id, info->m_flAccuracy, velocity,
                             g.player_move->flags & FL_ONGROUND, g.player_move->flags & FL_DUCKING,
                             g.fov, info->m_iWeaponState);
 
-            g.engine_funcs->Con_Printf("FOV: %f\n", g.fov);
             unsigned int shared_rand = g.local_player_data.weapon.seed;
 
             math::vec3 view_angles = cmd->viewangles.normalize_angle();
@@ -199,7 +200,7 @@ namespace features
             !g.local_player_data.weapon.in_reload)
         {
             // Get necessary info
-            auto info = get_weapon_info((custom::weapon_id)g.local_player_data.weapon.id);
+            auto info = utils::get_weapon_info((custom::weapon_id)g.local_player_data.weapon.id);
             float velocity = math::vec3(g.local_player_data.velocity.x, g.local_player_data.velocity.y, 0.0f).length();
             auto spread = custom::get_spread(g.local_player_data.weapon.id, info->m_flAccuracy, velocity,
                             g.player_move->flags & FL_ONGROUND, g.player_move->flags & FL_DUCKING,

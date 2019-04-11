@@ -1,15 +1,15 @@
 #pragma once
 #include <cstring>
-#include "hooks.hpp"
+#include "../hooks.hpp"
 
-#include "../Utils/globals.hpp"
-#include "../Utils/math.hpp"
+#include "../../Utils/globals.hpp"
+#include "../../Utils/math.hpp"
 
-#include "../HLSDK/Parsemsg.hpp"
-#include "../HLSDK/Weapons.hpp"
-#include "../HLSDK/Textures.hpp"
+#include "../../HLSDK/Parsemsg.hpp"
+#include "../../HLSDK/Weapons.hpp"
+#include "../../HLSDK/Textures.hpp"
 
-#include "../Features/Utils/utils.hpp"
+#include "../../Features/Utils/utils.hpp"
 
 namespace hooks
 {

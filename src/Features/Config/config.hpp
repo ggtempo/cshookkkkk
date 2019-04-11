@@ -14,8 +14,8 @@ namespace features
         public:
             static config& instance()
             {
-                static config cfg;
-                return cfg;
+                static config instance;
+                return instance;
             }
 
         public:

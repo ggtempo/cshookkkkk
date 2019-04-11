@@ -738,6 +738,12 @@ namespace custom
                     8192, 2, 70, 0.98, 0.825
                 };
         }
+
+        // Return glock as default weapon
+        return {
+            get_bullet_params(bullet_id::bullet_9mm),
+            4096, 2, 25, 0.75, 0.475
+        };
     }
 
     inline float get_hitbox_damage_modifier(hitbox_numbers id)

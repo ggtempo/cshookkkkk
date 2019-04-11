@@ -88,13 +88,16 @@ namespace features
         public:
             static visuals& instance()
             {
-                static visuals aa;
-                return aa;
+                static visuals instance;
+                return instance;
             }
 
             void studio_render_model(CStudioModelRenderer* ecx);
             void swap_buffers();
             void show_menu();
+
+        private:
+            void draw_esp();
 
         private:
             enum class chams_modes

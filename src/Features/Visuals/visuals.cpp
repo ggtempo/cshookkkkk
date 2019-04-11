@@ -1,7 +1,9 @@
 #include "visuals.hpp"
 #include "../../ImGui/imgui_impl.h"
 #include "../../ImGui/imgui.h"
+#include "../Utils/utils.hpp"
 #include <glad/gl.h>
+#include "../Miscelaneous/miscelaneous.hpp"
 
 namespace features
 {
@@ -18,7 +20,7 @@ namespace features
             (g.player_data[entity->index].alive && !g.player_data[entity->index].dormant)           &&
             ((g.player_data[entity->index].team != g.local_player_data.team) || this->chams_team)   &&
             (entity->index != local->index) && (entity != local)                                    &&                    
-            (!g.hide_on_screenshot || !(g.taking_screenshot || g.taking_snapshot)))
+            features::miscelaneous::instance().can_show())
         {
             // If we should render the chams through the walls, use only the top portion of the depth buffer
             if (this->chams_through_walls)
@@ -131,7 +133,7 @@ namespace features
 
         auto io = ImGui::GetIO();
 
-        if (!(!g.hide_on_screenshot || !(g.taking_screenshot || g.taking_snapshot)))
+        if (!features::miscelaneous::instance().can_show())
             return; // Early exit when taking a screenshot
 
         // Creating a fullscreen overlay window with no inputs, title bar, etc..
@@ -159,8 +161,7 @@ namespace features
             return;
         }
 
-        auto draw_list = ImGui::GetWindowDrawList();
-        if (!draw_list || !local || !this->box_esp)
+        if (!local || !this->box_esp)
         {
             // Early exit for when the window is hidden (Not really possible)
             ImGui::End();
@@ -168,117 +169,132 @@ namespace features
             return;
         }
 
-        // Go through each player
-        for (size_t i = 1; i < g.engine_funcs->GetMaxClients(); i++)
-        {
-            auto entity = g.engine_funcs->GetEntityByIndex(i);
-
-            // Check if entity is valid
-            if (!entity || !entity->index)
-                continue;
-
-            if ((g.player_data[entity->index].alive && !g.player_data[entity->index].dormant)           &&
-                ((g.player_data[entity->index].team != g.local_player_data.team) || this->box_esp_team) &&
-                (entity->index != local->index) && (entity != local))
-            {
-                // Get head hitbox 
-                auto& head_matrix = g.player_data[entity->index].hitboxes[hitbox_numbers::head].matrix;
-                auto& head_box = g.player_data[entity->index].hitboxes[hitbox_numbers::head].box;
-
-                // Find the center
-                auto head_bbmax = head_matrix.transform_vec3(head_box.bbmax);
-                auto head_bbmin = head_matrix.transform_vec3(head_box.bbmin);
-                auto head = (head_bbmin + head_bbmax) * 0.5;
-                head.z += 8;            // Offset by about 8 up, otherwise box will reach only halfway through the head
-
-                bool ducking = ((entity->curstate.maxs[2] - entity->curstate.mins[2]) < 54 ? true : false);
-                auto feet = entity->origin;
-                feet.z -= ducking ? 14 : 34;
-
-                math::vec3 head_screen = {};
-                math::vec3 feet_screen = {};
-
-                // Get screen coordinates (0 - 1)
-                auto head_result = g.engine_funcs->pTriAPI->WorldToScreen(head, head_screen);
-                auto feet_result = g.engine_funcs->pTriAPI->WorldToScreen(feet, feet_screen);
-                
-                // Project to actual screen coordinates (0 - resolution)
-                auto head_pos = screen_project(head_screen, {io.DisplaySize.x, io.DisplaySize.y, 0.0f});
-                auto feet_pos = screen_project(feet_screen, {io.DisplaySize.x, io.DisplaySize.y, 0.0f});
-
-                // If projection is out of our screen, skip this player
-                if (head_result || feet_result)
-                    continue;
-
-                // Find the difference between head and feet
-                constexpr float width_to_height_ratio = 0.4f;
-                auto height_difference = feet_pos.y - head_pos.y;
-                auto width = height_difference * width_to_height_ratio; // Box is about 0.4 times as wide as it is high
-
-                // Convert to screen coordinates
-                auto pos = ImVec2(head_pos.x - (width / 2), head_pos.y);
-                auto size = ImVec2(width, height_difference);
-
-                // Get corresponding color
-                ImColor color = ImColor(0.0f, 0.0f, 0.0f, 0.0f);
-
-                if (g.player_data[entity->index].team != g.local_player_data.team)
-                {
-                    color = ImColor(this->enemy_color.r, this->enemy_color.g, this->enemy_color.b, 1.0f);
-                }
-                else
-                {
-                    color = ImColor(this->team_color.r, this->team_color.g, this->team_color.b, 1.0f);
-                }
-
-                // Draw the box itself
-                draw_box_esp(draw_list, pos, size, color);
-
-                // If we should draw name
-                if (this->name_esp)
-                {
-                    // Get the size
-                    auto text_size = ImGui::CalcTextSize(g.player_data[entity->index].name);
-
-                    // Get correct position
-                    auto bottom = ImVec2(pos.x + (size.x / 2), pos.y + size.y + 5);
-                    auto text_pos = ImVec2(bottom.x - (text_size.x / 2), bottom.y);
-
-                    // Render the text
-                    draw_list->AddText(text_pos, ImColor(1.0f, 1.0f, 1.0f, 1.0f), g.player_data[entity->index].name);
-                }
-
-                /*if (true)
-                {
-                    math::vec3 head_original_screen = {};
-
-                    // Get screen coordinates (0 - 1)
-                    auto head_result = g.engine_funcs->pTriAPI->WorldToScreen(head, head_screen);
-
-                    auto start = g.player_move->origin + g.player_move->view_ofs;
-                    auto direction = (head - start).normalize();
-                    //auto perpendicular = math::vec3::cross_product(direction, math::vec3{1.0, 0.0, 0.0});
-                    math::vec3 forward, right, perpendicular;
-
-                    auto angle = direction.to_angles().normalize_angle();
-                    angle.to_vectors(forward, right, perpendicular);
-                    perpendicular.normalize();
-
-                    auto radius_point = head + (perpendicular * g.aim_fov);
-                    math::vec3 radius_screen = {};
-
-                    auto radius_point_result = g.engine_funcs->pTriAPI->WorldToScreen(radius_point, radius_screen);
-                    auto radius_point_pos = screen_project(radius_screen, {io.DisplaySize.x, io.DisplaySize.y, 0.0f});
-                    
-                    auto radius = (head_pos - radius_point_pos).length();
-                    draw_list->AddCircle(ImVec2(head_pos.x, head_pos.y), radius, ImColor(1.0f, 1.0f, 1.0f, 1.0f), 360.0f);
-                }*/
-            }
-        }
+        // Draw esp
+        this->draw_esp();
 
         // Restore default style
         ImGui::End();
         ImGui::PopStyleVar(4);
+
+        features::miscelaneous::instance().swap_buffers();
+    }
+
+    void visuals::draw_esp()
+    {
+        static auto& g = globals::instance();
+
+        auto io = ImGui::GetIO();
+        auto draw_list = ImGui::GetWindowDrawList();
+        if (!draw_list)
+            return;
+
+        // Go through each player
+        for (size_t i = 1; i <= g.engine_funcs->GetMaxClients(); i++)
+        {
+            auto entity = g.engine_funcs->GetEntityByIndex(i);
+
+            // Check if entity is valid
+            if (!utils::is_valid_player(entity))
+                continue;
+
+            // Skip on teammates if user doesn't want them
+            if (!((g.player_data[entity->index].team != g.local_player_data.team) || this->box_esp_team))
+                continue;
+            
+            // Get head hitbox
+            auto& head_matrix = g.player_data[entity->index].hitboxes[hitbox_numbers::head].matrix;
+            auto& head_box = g.player_data[entity->index].hitboxes[hitbox_numbers::head].box;
+
+            // Find the center
+            auto head_bbmax = head_matrix.transform_vec3(head_box.bbmax);
+            auto head_bbmin = head_matrix.transform_vec3(head_box.bbmin);
+            auto head = (head_bbmin + head_bbmax) * 0.5;
+            head.z += 8;            // Offset by about 8 up, otherwise box will reach only halfway through the head
+
+            bool ducking = ((entity->curstate.maxs[2] - entity->curstate.mins[2]) < 54 ? true : false);
+            auto feet = entity->origin;
+            feet.z -= ducking ? 14 : 34;
+
+            math::vec3 head_screen = {};
+            math::vec3 feet_screen = {};
+
+            // Get screen coordinates (0 - 1)
+            auto head_result = g.engine_funcs->pTriAPI->WorldToScreen(head, head_screen);
+            auto feet_result = g.engine_funcs->pTriAPI->WorldToScreen(feet, feet_screen);
+            
+            // Project to actual screen coordinates (0 - resolution)
+            auto head_pos = screen_project(head_screen, {io.DisplaySize.x, io.DisplaySize.y, 0.0f});
+            auto feet_pos = screen_project(feet_screen, {io.DisplaySize.x, io.DisplaySize.y, 0.0f});
+
+            // If projection is out of our screen, skip this player
+            if (head_result || feet_result)
+                continue;
+
+            // Find the difference between head and feet
+            constexpr float width_to_height_ratio = 0.4f;
+            auto height_difference = feet_pos.y - head_pos.y;
+            auto width = height_difference * width_to_height_ratio; // Box is about 0.4 times as wide as it is high
+
+            // Convert to screen coordinates
+            auto pos = ImVec2(head_pos.x - (width / 2), head_pos.y);
+            auto size = ImVec2(width, height_difference);
+
+            // Get corresponding color
+            ImColor color = ImColor(0.0f, 0.0f, 0.0f, 0.0f);
+
+            if (g.player_data[entity->index].team != g.local_player_data.team)
+            {
+                color = ImColor(this->enemy_color.r, this->enemy_color.g, this->enemy_color.b, 1.0f);
+            }
+            else
+            {
+                color = ImColor(this->team_color.r, this->team_color.g, this->team_color.b, 1.0f);
+            }
+
+            // Draw the box itself
+            draw_box_esp(draw_list, pos, size, color);
+
+            // If we should draw name
+            if (this->name_esp)
+            {
+                // Get the size
+                auto text_size = ImGui::CalcTextSize(g.player_data[entity->index].name);
+
+                // Get correct position
+                auto bottom = ImVec2(pos.x + (size.x / 2), pos.y + size.y + 5);
+                auto text_pos = ImVec2(bottom.x - (text_size.x / 2), bottom.y);
+
+                // Render the text
+                draw_list->AddText(text_pos, ImColor(1.0f, 1.0f, 1.0f, 1.0f), g.player_data[entity->index].name);
+            }
+
+            /*if (true)
+            {
+                math::vec3 head_original_screen = {};
+
+                // Get screen coordinates (0 - 1)
+                auto head_result = g.engine_funcs->pTriAPI->WorldToScreen(head, head_screen);
+
+                auto start = g.player_move->origin + g.player_move->view_ofs;
+                auto direction = (head - start).normalize();
+                //auto perpendicular = math::vec3::cross_product(direction, math::vec3{1.0, 0.0, 0.0});
+                math::vec3 forward, right, perpendicular;
+
+                auto angle = direction.to_angles().normalize_angle();
+                angle.to_vectors(forward, right, perpendicular);
+                perpendicular.normalize();
+
+                auto radius_point = head + (perpendicular * g.aim_fov);
+                math::vec3 radius_screen = {};
+
+                auto radius_point_result = g.engine_funcs->pTriAPI->WorldToScreen(radius_point, radius_screen);
+                auto radius_point_pos = screen_project(radius_screen, {io.DisplaySize.x, io.DisplaySize.y, 0.0f});
+                
+                auto radius = (head_pos - radius_point_pos).length();
+                draw_list->AddCircle(ImVec2(head_pos.x, head_pos.y), radius, ImColor(1.0f, 1.0f, 1.0f, 1.0f), 360.0f);
+            }*/
+            
+        }
     }
 
     void visuals::show_menu()

@@ -1,4 +1,5 @@
 #include "antiaim.hpp"
+#include "../Utils/utils.hpp"
 #include "../../ImGui/imgui.h"
 
 namespace features
@@ -338,22 +339,19 @@ namespace features
         auto min_distance = 999999.0f;
         auto best_yaw = current_yaw;
 
-        for (auto i = 0; i < g.engine_funcs->GetMaxClients(); i++)
+        for (auto i = 1; i <= g.engine_funcs->GetMaxClients(); i++)
         {
             auto entity = g.engine_funcs->GetEntityByIndex(i);
 
             // Don't try to use invalid entities
-            if (!entity || !entity->index || !local || entity == local || entity->index == local->index)
-                continue;
-
-            if (!g.player_data[entity->index].alive || g.player_data[entity->index].dormant)
+            if (!utils::is_valid_player(entity))
                 continue;
 
             auto distance = (entity->curstate.origin - start).length();
 
-            // Enemies are "100 times closer" than allies
+            // Ignore teammates
             if (g.player_data[entity->index].team == g.local_player_data.team)
-                distance *= 100;
+                continue;
 
             auto target_yaw = (entity->curstate.origin - start).normalize()
                                                                .to_angles()

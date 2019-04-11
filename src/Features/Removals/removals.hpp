@@ -62,8 +62,8 @@ namespace features
         public:
             static removals& instance()
             {
-                static removals aa;
-                return aa;
+                static removals instance;
+                return instance;
             }
 
             void create_move(float frametime, usercmd_t *cmd, int active);

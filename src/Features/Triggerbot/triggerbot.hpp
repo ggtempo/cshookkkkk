@@ -88,8 +88,8 @@ namespace features
         public:
             static triggerbot& instance()
             {
-                static triggerbot aa;
-                return aa;
+                static triggerbot instance;
+                return instance;
             }
 
             void create_move(float frametime, usercmd_t *cmd, int active);

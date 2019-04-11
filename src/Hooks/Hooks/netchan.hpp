@@ -1,7 +1,7 @@
 
 #pragma once
-#include "hooks.hpp"
-#include "../Utils/globals.hpp"
+#include "../hooks.hpp"
+#include "../../Utils/globals.hpp"
 
 namespace hooks
 {

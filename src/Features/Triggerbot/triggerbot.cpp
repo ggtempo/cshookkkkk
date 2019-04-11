@@ -1,4 +1,5 @@
 #include "triggerbot.hpp"
+#include "../Utils/utils.hpp"
 #include "../../ImGui/imgui.h"
 #include "../../ImGui/imgui_custom.hpp"
 #include <chrono>
@@ -17,11 +18,11 @@ namespace features
             vec3_t forward = angles.to_vector() * 8192;
 
             // Go through every player
-            for (auto i = 0; i < g.engine_funcs->GetMaxClients(); i++)
+            for (auto i = 1; i <= g.engine_funcs->GetMaxClients(); i++)
             {
                 auto entity = g.engine_funcs->GetEntityByIndex(i);
 
-                if (g.player_data[entity->index].dormant || !g.player_data[entity->index].alive)
+                if (!utils::is_valid_player(entity))
                     continue;
 
                 if ((g.player_data[entity->index].team == g.local_player_data.team) && !this->team)

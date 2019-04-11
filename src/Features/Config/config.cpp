@@ -6,6 +6,7 @@
 #include "../Removals/removals.hpp"
 #include "../Triggerbot/triggerbot.hpp"
 #include "../Visuals/visuals.hpp"
+#include "../Miscelaneous/miscelaneous.hpp"
 #include "../../ImGui/imgui.h"
 #include "../../Utils/utils.hpp"
 #include "../../ImGui/imgui_custom.hpp"
@@ -35,6 +36,7 @@ namespace features
         features::visuals::instance().load_from_config(config);
         features::anti_aim::instance().load_from_config(config);
         features::removals::instance().load_from_config(config);
+        features::miscelaneous::instance().load_from_config(config);
     }
 
     void config::save_config()
@@ -51,6 +53,7 @@ namespace features
             features::visuals::instance().save_to_config(file);
             features::anti_aim::instance().save_to_config(file);
             features::removals::instance().save_to_config(file);
+            features::miscelaneous::instance().save_to_config(file);
         }
     }
 

@@ -109,8 +109,8 @@ namespace features
         public:
             static anti_aim& instance()
             {
-                static anti_aim aa;
-                return aa;
+                static anti_aim instance;
+                return instance;
             }
 
             void create_move(float frametime, usercmd_t *cmd, int active);

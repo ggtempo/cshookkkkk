@@ -1,7 +1,8 @@
 #include "aimbot.hpp"
+#include <chrono>
+#include "../Utils/utils.hpp"
 #include "../../ImGui/imgui.h"
 #include "../../ImGui/imgui_custom.hpp"
-#include <chrono>
 
 namespace features
 {
@@ -238,12 +239,12 @@ namespace features
         std::vector<possible_target> possible_targets;
 
         // For every player
-        for (auto i = 0; i < g.engine_funcs->GetMaxClients(); i++)
+        for (auto i = 1; i <= g.engine_funcs->GetMaxClients(); i++)
         {
             auto entity = g.engine_funcs->GetEntityByIndex(i);
 
             // Check if its valid
-            if (g.player_data[entity->index].dormant || !g.player_data[entity->index].alive)
+            if (!utils::is_valid_player(entity))
                 continue;
 
             if ((g.player_data[entity->index].team == g.local_player_data.team) && !this->team)
@@ -290,9 +291,6 @@ namespace features
                     // If the players crosshair hits the virtual sphere, target is valid
                     if (sphere_test.hit || !this->fov_enabled)
                     {
-                        // FOV is 10 times more important than real_distance
-                        //auto metric = (fov_result.fov) + (fov_result.real_distance / 10);
-
                         // We found a useful target, push it to our possible target vector
                         possible_targets.push_back(possible_target{
                             entity->index, static_cast<hitbox_numbers>(key),
@@ -306,6 +304,9 @@ namespace features
 
         // Sort, so that we get best target first
         std::sort(possible_targets.begin(), possible_targets.end(), [](const possible_target& target1, const possible_target& target2) -> bool {
+            // Metric is the distance from crosshair + tenth of distance from head
+            // In essence, we will get targets that are closer to our crosshair, or the ones closer to us
+            // NOTE: This should probably be precalculated
             auto metric1 = (target1.fov) + (target1.distance / 10);
             auto metric2 = (target2.fov) + (target2.distance / 10);
 
@@ -321,7 +322,7 @@ namespace features
 
             if  (hitbox.visible ||          // Hitbox is visible
                 (this->auto_wall &&         // Or we have auto-wall enabled and estimated damage is greater or equal to the required damage
-                (get_estimated_damage(origin, target.center, g.local_player_data.weapon.id, target.player_id, hid) >= this->auto_wall_min_damage)))
+                (utils::get_estimated_damage(origin, target.center, g.local_player_data.weapon.id, target.player_id, hid) >= this->auto_wall_min_damage)))
             {
                 return {
                     target.player_id, target.hitbox_id,
