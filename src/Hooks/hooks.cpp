@@ -36,19 +36,19 @@
 namespace hooks
 {
     
-    LRESULT CALLBACK hk_wnd_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+    LRESULT CALLBACK hk_wnd_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
     {
         using window_proc_fn = LRESULT(__stdcall*)(HWND, UINT, WPARAM, LPARAM);
 
         static auto& g = globals::instance();
 
         if (!g.first)
-            ImGui_Impl_WndProcHandler(hWnd, uMsg, wParam, lParam);
+            ImGui_Impl_WndProcHandler(hwnd, msg, wparam, lparam);
 
         // Key released
-        if (uMsg == WM_KEYUP)
+        if (msg == WM_KEYUP)
         {
-            if (wParam == VK_INSERT)
+            if (wparam == VK_INSERT)
             {
                 // Toggle menu
                 g.menu_enabled = !g.menu_enabled;
@@ -56,31 +56,31 @@ namespace hooks
 
             if (g.catch_keys)
             {
-                g.captured_key = wParam;
+                g.captured_key = wparam;
             }                
         }
-        else if (uMsg == WM_LBUTTONUP && g.catch_keys)
+        else if (msg == WM_LBUTTONUP && g.catch_keys)
         {
             g.captured_key = MK_LBUTTON;
         }
-        else if (uMsg == WM_RBUTTONUP && g.catch_keys)
+        else if (msg == WM_RBUTTONUP && g.catch_keys)
         {
             g.captured_key = MK_RBUTTON;
         }
-        else if (uMsg == WM_MBUTTONUP && g.catch_keys)
+        else if (msg == WM_MBUTTONUP && g.catch_keys)
         {
             g.captured_key = MK_MBUTTON;
         }
-        else if (uMsg == WM_XBUTTONUP && g.catch_keys)
+        else if (msg == WM_XBUTTONUP && g.catch_keys)
         {
-            g.captured_key = GET_XBUTTON_WPARAM(wParam) + 0x4;
+            g.captured_key = GET_XBUTTON_WPARAM(wparam) + 0x4;
         }
 
         auto& io = ImGui::GetIO();
         if (io.WantCaptureMouse || io.WantCaptureKeyboard || ImGui::IsMouseHoveringAnyWindow())
         {
             // Dont pass keyboard/mouse input to the game
-            //return DefWindowProc(hWnd, uMsg, wParam, lParam);
+            //return DefWindowProc(hwnd, msg, wparam, lparam);
 
             io.MouseDrawCursor = true;
         }
@@ -89,7 +89,7 @@ namespace hooks
             io.MouseDrawCursor = false;
         }
 
-        return reinterpret_cast<window_proc_fn>(g.original_window_proc)(hWnd, uMsg, wParam, lParam);
+        return reinterpret_cast<window_proc_fn>(g.original_window_proc)(hwnd, msg, wparam, lparam);
     }
 
     BOOL __stdcall hk_wgl_swap_buffers(HDC hDc)
@@ -851,8 +851,8 @@ namespace hooks
         auto client = GetModuleHandle(L"client.dll");
         auto hw_dll = GetModuleHandle(L"hw.dll");
 
-        auto cInitialize = reinterpret_cast<uint8_t*>(GetProcAddress(client, "Initialize"));
-        g.engine_funcs = reinterpret_cast<cl_enginefunc_t*>(*(uint32_t*)(cInitialize + 0x1C));
+        auto client_initialize = reinterpret_cast<uint8_t*>(GetProcAddress(client, "Initialize"));
+        g.engine_funcs = reinterpret_cast<cl_enginefunc_t*>(*(uint32_t*)(client_initialize + 0x1C));
 
         g.player_move = new playermove_t();
 

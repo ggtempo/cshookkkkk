@@ -23,11 +23,11 @@
 
 utils::module_info* module_info;
 
-void ThreadMain()
+void thread_main()
 {
     auto& g = globals::instance();
 
-    auto parentProcess = GetModuleHandle(NULL);
+    auto parent_process = GetModuleHandle(NULL);
     g.main_window = utils::get_main_window(module_info->pid);
     auto base_path = utils::get_base_path(module_info->instance);
     auto full_path = ((base_path) ? *base_path : std::wstring(L"%USERPROFILE%"));
@@ -44,9 +44,9 @@ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved)
     {
         DisableThreadLibraryCalls(instance);
 
-        /*if (auto basePath = Utils::GetBasePath(hInstance); basePath)
+        /*if (auto base_path = utils::get_base_path(instance); base_path)
         {
-            SetDllDirectory((*basePath).c_str());
+            SetDllDirectory((*base_path).c_str());
         }*/
 
         auto pid = GetCurrentProcessId();
@@ -57,7 +57,7 @@ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved)
         module_info->pid = pid;
 
 
-        CreateThread(NULL, NULL, reinterpret_cast<LPTHREAD_START_ROUTINE>(&ThreadMain), nullptr, NULL, NULL);
+        CreateThread(NULL, NULL, reinterpret_cast<LPTHREAD_START_ROUTINE>(&thread_main), nullptr, NULL, NULL);
 
         return true;
     }

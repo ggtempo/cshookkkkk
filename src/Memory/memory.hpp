@@ -11,19 +11,19 @@ namespace memory
 {
     inline uint32_t set_memory_protection(uintptr_t base, size_t size, uint32_t protection)
     {
-        uint32_t oldProtection;
-        VirtualProtect((LPVOID)base, size, protection, (PDWORD)&oldProtection);
-        return oldProtection;
+        uint32_t old_protection;
+        VirtualProtect((LPVOID)base, size, protection, (PDWORD)&old_protection);
+        return old_protection;
     }
 
-    inline uintptr_t create_executable_memory(const std::vector<uint8_t>& originalBytes, uintptr_t callAddress, uintptr_t returnAddress)
+    inline uintptr_t create_executable_memory(const std::vector<uint8_t>& original_bytes, uintptr_t call_address, uintptr_t return_address)
     {
-        size_t funcSize = 16 + originalBytes.size() + 8;
-        uint8_t* result = reinterpret_cast<uint8_t*>(std::malloc(funcSize));
+        size_t func_size = 16 + original_bytes.size() + 8;
+        uint8_t* result = reinterpret_cast<uint8_t*>(std::malloc(func_size));
         uint32_t offset = 0;
 
-        auto returnAddressOffset = reinterpret_cast<uintptr_t>(result) + funcSize - 8;
-        auto callAddressOffset = reinterpret_cast<uintptr_t>(result) + funcSize - 4;
+        auto return_address_offset = reinterpret_cast<uintptr_t>(result) + func_size - 8;
+        auto call_address_offset = reinterpret_cast<uintptr_t>(result) + func_size - 4;
 
         result[offset++] = 0x9C;		// 0x9C - PUSHFD
         result[offset++] = 0x60;		// 0x60 - PUSHAD
@@ -31,63 +31,63 @@ namespace memory
         // 0xE8 0x00000000 - 0xFF 0x15 0x00000000 - CALL 32bit indirect ....
         result[offset++] = 0xFF;
         result[offset++] = 0x15;
-        *(uint32_t*)(result + offset) = callAddressOffset; offset += 4;
+        *(uint32_t*)(result + offset) = call_address_offset; offset += 4;
         
         result[offset++] = 0x61;		// 0x61 - POPAD
         result[offset++] = 0x9D;		// 0x9D - POPFD
         
         // Restore original bytes
-        for (auto i = 0; i < originalBytes.size(); i++)
+        for (auto i = 0; i < original_bytes.size(); i++)
         {
-            result[offset++] = originalBytes[i];
+            result[offset++] = original_bytes[i];
         }
 
         // Jump to original function - 0xFF 0x25 0x00000000 - JMP 32bit absolute
         result[offset++] = 0xFF;
         result[offset++] = 0x25;
-        *(uint32_t*)(result + offset) = returnAddressOffset;
+        *(uint32_t*)(result + offset) = return_address_offset;
 
         // Damn indirect jumps ...
-        *(uint32_t*)(callAddressOffset) = callAddress;
-        *(uint32_t*)(returnAddressOffset) = returnAddress;
+        *(uint32_t*)(call_address_offset) = call_address;
+        *(uint32_t*)(return_address_offset) = return_address;
         
         // Set protection so that we can read, write and execute
-        set_memory_protection(reinterpret_cast<uintptr_t>(result), funcSize, PAGE_EXECUTE_READWRITE);
+        set_memory_protection(reinterpret_cast<uintptr_t>(result), func_size, PAGE_EXECUTE_READWRITE);
 
         return reinterpret_cast<uintptr_t>(result);
     }
 
-    inline uintptr_t hook_func(uintptr_t hookAt, uintptr_t hookFunc, size_t neededBytes)
+    inline uintptr_t hook_func(uintptr_t hook_at, uintptr_t hook_fn, size_t needed_bytes)
     {
         // Set protection so that we can read, write and execute
-        auto oldProtection = set_memory_protection(hookAt, neededBytes, PAGE_EXECUTE_READWRITE);
+        auto old_protection = set_memory_protection(hook_at, needed_bytes, PAGE_EXECUTE_READWRITE);
 
         // Collect necessary bytes
         std::vector<uint8_t> bytes;
-        for (auto i = 0; i < neededBytes; i++)
+        for (auto i = 0; i < needed_bytes; i++)
         {
-            bytes.push_back(*(uint8_t*)(hookAt + i));
+            bytes.push_back(*(uint8_t*)(hook_at + i));
         }
 
-        auto newFunc = create_executable_memory(bytes, hookFunc, hookAt + 5);
-        intptr_t newOffset = newFunc - hookAt - 5;								// 32bit relative jumps ( - 5 because relative to next instruction )
+        auto new_fn = create_executable_memory(bytes, hook_fn, hook_at + 5);
+        intptr_t new_offset = new_fn - hook_at - 5;								// 32bit relative jumps ( - 5 because relative to next instruction )
 
-        *(uint8_t*)(hookAt) = 0xE9;		// Jump - 0xE9 0x00000000 - JMP 32bit relative
-        *(uint32_t*)(((uint8_t*)hookAt) + 1) = newOffset;
+        *(uint8_t*)(hook_at) = 0xE9;		// Jump - 0xE9 0x00000000 - JMP 32bit relative
+        *(uint32_t*)(((uint8_t*)hook_at) + 1) = new_offset;
 
-        set_memory_protection(hookAt, neededBytes, oldProtection);
+        set_memory_protection(hook_at, needed_bytes, old_protection);
 
-        return newOffset;
+        return new_offset;
     }
 
-    inline std::pair<uintptr_t, uintptr_t> create_executable_memory2(const std::vector<uint8_t>& originalBytes, uintptr_t callAddress, uintptr_t returnAddress)
+    inline std::pair<uintptr_t, uintptr_t> create_executable_memory2(const std::vector<uint8_t>& original_bytes, uintptr_t call_address, uintptr_t return_address)
     {
-        size_t funcSize = 20 + originalBytes.size();// + 3;// + 4;
-        uint8_t* result = reinterpret_cast<uint8_t*>(std::malloc(funcSize));
+        size_t func_size = 20 + original_bytes.size();// + 3;// + 4;
+        uint8_t* result = reinterpret_cast<uint8_t*>(std::malloc(func_size));
         uint32_t offset = 0;
 
-        auto returnAddressOffset = reinterpret_cast<uintptr_t>(result) + funcSize - 8;
-        auto callAddressOffset = reinterpret_cast<uintptr_t>(result) + funcSize - 4;
+        auto return_address_offset = reinterpret_cast<uintptr_t>(result) + func_size - 8;
+        auto call_address_offset = reinterpret_cast<uintptr_t>(result) + func_size - 4;
 
         //result[offset++] = 0x9C;		// 0x9C - PUSHFD
         //result[offset++] = 0x60;		// 0x60 - PUSHAD
@@ -95,9 +95,9 @@ namespace memory
         // 0xE8 0x00000000 - 0xFF 0x25 0x00000000 - JMP 32bit indirect ....
         result[offset++] = 0xFF;
         result[offset++] = 0x25;
-        *(uint32_t*)(result + offset) = callAddressOffset; offset += 4;
+        *(uint32_t*)(result + offset) = call_address_offset; offset += 4;
 
-        uintptr_t postHookAddress = reinterpret_cast<uintptr_t>(result) + offset;
+        uintptr_t post_hook_address = reinterpret_cast<uintptr_t>(result) + offset;
 
         // We add 4 to ESP so that the call from the original function correctly restores using POPAD, POPFD
         //result[offset++] = 0x83;        // Add
@@ -109,55 +109,55 @@ namespace memory
         
 
         // Restore original bytes
-        for (auto i = 0; i < originalBytes.size(); i++)
+        for (auto i = 0; i < original_bytes.size(); i++)
         {
-            result[offset++] = originalBytes[i];
+            result[offset++] = original_bytes[i];
         }
 
         // Jump to original function - 0xFF 0x25 0x00000000 - JMP 32bit absolute
         result[offset++] = 0xFF;
         result[offset++] = 0x25;
-        *(uint32_t*)(result + offset) = returnAddressOffset;
+        *(uint32_t*)(result + offset) = return_address_offset;
 
         // Damn indirect jumps ...
-        *(uint32_t*)(callAddressOffset) = callAddress;
-        *(uint32_t*)(returnAddressOffset) = returnAddress;
+        *(uint32_t*)(call_address_offset) = call_address;
+        *(uint32_t*)(return_address_offset) = return_address;
 
         // Set protection so that we can read, write and execute
-        set_memory_protection(reinterpret_cast<uintptr_t>(result), funcSize, PAGE_EXECUTE_READWRITE);
+        set_memory_protection(reinterpret_cast<uintptr_t>(result), func_size, PAGE_EXECUTE_READWRITE);
 
-        return std::make_pair(reinterpret_cast<uintptr_t>(result), postHookAddress);
+        return std::make_pair(reinterpret_cast<uintptr_t>(result), post_hook_address);
     }
 
-    inline uintptr_t hook_func2(uintptr_t hookAt, uintptr_t hookFunc, size_t neededBytes)
+    inline uintptr_t hook_func2(uintptr_t hook_at, uintptr_t hook_fn, size_t needed_bytes)
     {
         // Set protection so that we can read, write and execute
-        auto oldProtection = set_memory_protection(hookAt, neededBytes, PAGE_EXECUTE_READWRITE);
+        auto old_protection = set_memory_protection(hook_at, needed_bytes, PAGE_EXECUTE_READWRITE);
 
         // Collect necessary bytes
         std::vector<uint8_t> bytes;
-        for (auto i = 0; i < neededBytes; i++)
+        for (auto i = 0; i < needed_bytes; i++)
         {
-            bytes.push_back(*(uint8_t*)(hookAt + i));
+            bytes.push_back(*(uint8_t*)(hook_at + i));
         }
 
-        auto newFunc = create_executable_memory2(bytes, hookFunc, hookAt + neededBytes);//5);
-        intptr_t newOffset = newFunc.first - hookAt - 5;						// 32bit relative jumps ( - 5 because relative to next instruction )
+        auto new_fn = create_executable_memory2(bytes, hook_fn, hook_at + needed_bytes);//5);
+        intptr_t new_offset = new_fn.first - hook_at - 5;						// 32bit relative jumps ( - 5 because relative to next instruction )
 
-        for (auto i = 0; i < neededBytes; i++)
+        for (auto i = 0; i < needed_bytes; i++)
         {
-            *(uint8_t*)(hookAt + i) = 0x90;
+            *(uint8_t*)(hook_at + i) = 0x90;
         }
 
-        *(uint8_t*)(hookAt) = 0xE9;		// Jump - 0xE9 0x00000000 - JMP 32bit relative
-        *(uint32_t*)(((uint8_t*)hookAt) + 1) = newOffset;
+        *(uint8_t*)(hook_at) = 0xE9;		// Jump - 0xE9 0x00000000 - JMP 32bit relative
+        *(uint32_t*)(((uint8_t*)hook_at) + 1) = new_offset;
 
-        set_memory_protection(hookAt, neededBytes, oldProtection);
+        set_memory_protection(hook_at, needed_bytes, old_protection);
 
-        return newFunc.second;
+        return new_fn.second;
     }
 
-    inline uint32_t* find_location(uint8_t* base, size_t size, std::vector<uint8_t> bytes, int32_t add = 0, bool substractModule = false)
+    inline uint32_t* find_location(uint8_t* base, size_t size, std::vector<uint8_t> bytes, int32_t add = 0, bool substract_module = false)
     {
         for (size_t i = 0; i < size; i++)
         {
@@ -173,14 +173,14 @@ namespace memory
 
             if (found)
             {
-                return (uint32_t*)(base + i + add) - ((substractModule) ? size : 0);
+                return (uint32_t*)(base + i + add) - ((substract_module) ? size : 0);
             }
         }
 
         return 0;
     }
 
-    inline uint32_t find_pattern(uint8_t* base, size_t size, std::vector<uint8_t> bytes, int32_t add = 0, bool substractModule = false)
+    inline uint32_t find_pattern(uint8_t* base, size_t size, std::vector<uint8_t> bytes, int32_t add = 0, bool substract_module = false)
     {
         for (size_t i = 0; i < size; i++)
         {
@@ -196,38 +196,38 @@ namespace memory
 
             if (found)
             {
-                return *(uint32_t*)(base + i + add) - ((substractModule) ? size : 0);
+                return *(uint32_t*)(base + i + add) - ((substract_module) ? size : 0);
             }
         }
 
         return 0;
     }
 
-    inline MODULEINFO get_module_info(std::string moduleName)
+    inline MODULEINFO get_module_info(std::string module_name)
     {
         MODULEINFO info;
-        uint8_t* moduleHandle = (uint8_t*)GetModuleHandleA(moduleName.c_str());
-        GetModuleInformation(GetCurrentProcess(), (HMODULE)moduleHandle, &info, sizeof(info));
+        uint8_t* module_handle = (uint8_t*)GetModuleHandleA(module_name.c_str());
+        GetModuleInformation(GetCurrentProcess(), (HMODULE)module_handle, &info, sizeof(info));
 
         return info;
     }
 
-    inline uint32_t find_pattern(std::string moduleName, std::vector<uint8_t> bytes, int32_t add = 0, bool substractModule = false)
+    inline uint32_t find_pattern(std::string module_name, std::vector<uint8_t> bytes, int32_t add = 0, bool substract_module = false)
     {
         MODULEINFO info;
-        uint8_t* moduleHandle = (uint8_t*)GetModuleHandleA(moduleName.c_str());
-        GetModuleInformation(GetCurrentProcess(), (HMODULE)moduleHandle, &info, sizeof(info));
+        uint8_t* module_handle = (uint8_t*)GetModuleHandleA(module_name.c_str());
+        GetModuleInformation(GetCurrentProcess(), (HMODULE)module_handle, &info, sizeof(info));
 
-        return find_pattern(reinterpret_cast<uint8_t*>(info.lpBaseOfDll), info.SizeOfImage, bytes, add, substractModule);
+        return find_pattern(reinterpret_cast<uint8_t*>(info.lpBaseOfDll), info.SizeOfImage, bytes, add, substract_module);
     }
 
-    inline uint32_t* find_location(std::string moduleName, std::vector<uint8_t> bytes, int32_t add = 0, bool substractModule = false)
+    inline uint32_t* find_location(std::string module_name, std::vector<uint8_t> bytes, int32_t add = 0, bool substract_module = false)
     {
         MODULEINFO info;
-        uint8_t* moduleHandle = (uint8_t*)GetModuleHandleA(moduleName.c_str());
-        GetModuleInformation(GetCurrentProcess(), (HMODULE)moduleHandle, &info, sizeof(info));
+        uint8_t* module_handle = (uint8_t*)GetModuleHandleA(module_name.c_str());
+        GetModuleInformation(GetCurrentProcess(), (HMODULE)module_handle, &info, sizeof(info));
 
-        return find_location(reinterpret_cast<uint8_t*>(info.lpBaseOfDll), info.SizeOfImage, bytes, add, substractModule);
+        return find_location(reinterpret_cast<uint8_t*>(info.lpBaseOfDll), info.SizeOfImage, bytes, add, substract_module);
     }
 
     // Simple RAII memory protection class
