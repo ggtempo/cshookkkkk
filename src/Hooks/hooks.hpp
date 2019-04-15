@@ -8,6 +8,7 @@
 namespace hooks
 {
     void init();
+    void unload();
 
     cl_enginefunc_t*    get_engine_funcs();
     cldll_func_t*       get_client_funcs();

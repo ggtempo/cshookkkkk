@@ -9,83 +9,92 @@ namespace features
     void aimbot::create_move(float frametime, usercmd_t *cmd, int active)
     {
         static auto& g = globals::instance();
-        g.aim_fov = this->fov_max;
 
-        if (this->enabled && (!this->on_key || GetAsyncKeyState(this->key)) && custom::is_gun(g.local_player_data.weapon.id))
+        // Only aimbot when enabled
+        if (!this->enabled)
+            return;
+
+        // Dont attempt to aimbot at all if we don't have a valid weapon
+        // Will prevent psilent getting us stuck when throwing grenades
+        if (!custom::is_gun(g.local_player_data.weapon.id))
+            return;
+
+        // Only continue if user is pressing a key or pressing one isn't needed
+        if (!(!this->on_key || GetAsyncKeyState(this->key)))
+            return;
+
+        vec3_t start = g.player_move->origin + g.player_move->view_ofs;
+        vec3_t angles = cmd->viewangles;
+        vec3_t forward = angles.to_vector() * 8192;
+
+        if (this->prediction)
         {
-            vec3_t start = g.player_move->origin + g.player_move->view_ofs;
-            vec3_t angles = cmd->viewangles;
-            vec3_t forward = angles.to_vector() * 8192;
+            // Move players head in the direction the player is moving
+            start += g.local_player_data.velocity * frametime;
+        }
 
-            if (this->prediction)
+        // Get the best target
+        auto best_target = this->find_best_target(start, angles, frametime);
+
+        // Check if it's a valid target
+        if (best_target.target_id != -1 && best_target.target_hitbox_id != -1)
+        {
+            // Transform hitbox position into world space
+            auto& hitbox = g.player_data[best_target.target_id].hitboxes[best_target.target_hitbox_id];
+            vec3_t center = best_target.center;
+
+
+            auto needed_angles =    (center - start)        // Get target vector
+                                    .normalize()            // Normalize to unit vector
+                                    .to_angles()            // Get the necessary angle
+                                    .normalize_angle();     // Normalize the angle
+
+            //auto estimated_damage = get_estimated_damage(start, center, g.local_player_data.weapon.id, best_target.target_id, best_target.target_hitbox_id);
+            //g.engine_funcs->Con_Printf("Estimated damage on target %i is %i\n", best_target.target_id, estimated_damage);
+
+            if (this->smooth_enabled && !this->silent)
             {
-                // Move players head in the direction the player is moving
-                start += g.local_player_data.velocity * frametime;
+                // If the aimbot needs to follow a smooth path
+                // Get the angle difference
+                auto delta = (needed_angles - angles).normalize_angle();
+
+                // Smooth factor
+                float smooth = std::min(0.99f, 1 - (this->smooth_speed / 1000));
+                float coeff = (1.0f - smooth) / delta.length() * 4.0f;
+                coeff = std::min(1.0f, coeff);
+
+                // Needed angles = original angles + smoothing factor
+                // Thus we don't aim directly at a player, we move the crosshair slowly
+                needed_angles = angles + (delta * coeff);
             }
 
-            // Get the best target
-            auto best_target = this->find_best_target(start, angles, frametime);
-
-            // Check if it's a valid target
-            if (best_target.target_id != -1 && best_target.target_hitbox_id != -1)
+            // If we can fire or we smoothe the angles (eg: snap to target just when shooting or slowly move to the target)
+            if ((((g.local_player_data.weapon.next_attack <= 0.0) && (g.local_player_data.weapon.next_primary_attack <= 0.0)) && (cmd->buttons & IN_ATTACK || this->auto_fire)) ||
+                this->smooth_enabled)
             {
-                // Transform hitbox position into world space
-                auto& hitbox = g.player_data[best_target.target_id].hitboxes[best_target.target_hitbox_id];
-                vec3_t center = best_target.center;
+                // Normalize the angle
+                auto normalized = needed_angles.normalize_angle();
+                // Set the cmd viewangles (angles that are sent to the server)
+                cmd->viewangles = normalized;
 
+                // If we don't use silent aim, set the rendered angle as well (they will be a frame late tho)
+                if (!this->silent)
+                    g.engine_funcs->SetViewAngles(normalized);
 
-                auto needed_angles =    (center - start)        // Get target vector
-                                        .normalize()            // Normalize to unit vector
-                                        .to_angles()            // Get the necessary angle
-                                        .normalize_angle();     // Normalize the angle
-
-                //auto estimated_damage = get_estimated_damage(start, center, g.local_player_data.weapon.id, best_target.target_id, best_target.target_hitbox_id);
-                //g.engine_funcs->Con_Printf("Estimated damage on target %i is %i\n", best_target.target_id, estimated_damage);
-
-                if (this->smooth_enabled && !this->silent)
+                // If we should auto fire, check if we are aiming at a hitbox
+                if (this->auto_fire)
                 {
-                    // If the aimbot needs to follow a smooth path
-                    // Get the angle difference
-                    auto delta = (needed_angles - angles).normalize_angle();
+                    auto new_forward = cmd->viewangles.to_vector() * 8912;
 
-                    // Smooth factor
-                    float smooth = std::min(0.99f, 1 - (this->smooth_speed / 1000));
-                    float coeff = (1.0f - smooth) / delta.length() * 4.0f;
-                    coeff = std::min(1.0f, coeff);
-
-                    // Needed angles = original angles + smoothing factor
-                    // Thus we don't aim directly at a player, we move the crosshair slowly
-                    needed_angles = angles + (delta * coeff);
-                }
-
-                // If we can fire or we smoothe the angles (eg: snap to target just when shooting or slowly move to the target)
-                if ((((g.local_player_data.weapon.next_attack <= 0.0) && (g.local_player_data.weapon.next_primary_attack <= 0.0)) && (cmd->buttons & IN_ATTACK || this->auto_fire)) ||
-                    this->smooth_enabled)
-                {
-                    // Normalize the angle
-                    auto normalized = needed_angles.normalize_angle();
-                    // Set the cmd viewangles (angles that are sent to the server)
-                    cmd->viewangles = normalized;
-
-                    // If we don't use silent aim, set the rendered angle as well (they will be a frame late tho)
-                    if (!this->silent)
-                        g.engine_funcs->SetViewAngles(normalized);
-
-                    // If we should auto fire, check if we are aiming at a hitbox
-                    if (this->auto_fire)
+                    if ((hitbox.visible || this->auto_wall) && (this->target_hitboxes[best_target.target_hitbox_id] || this->all_hitboxes) && key != hitbox_numbers::unknown)
                     {
-                        auto new_forward = cmd->viewangles.to_vector() * 8912;
-
-                        if ((hitbox.visible || this->auto_wall) && (this->target_hitboxes[best_target.target_hitbox_id] || this->all_hitboxes) && key != hitbox_numbers::unknown)
+                        // If the hitbox is visible and should trigger shooting, check if our crosshair intersects it
+                        if (auto result = math::ray_hits_rbbox(start, new_forward, hitbox.box, hitbox.matrix); result.hit)
                         {
-                            // If the hitbox is visible and should trigger shooting, check if our crosshair intersects it
-                            if (auto result = math::ray_hits_rbbox(start, new_forward, hitbox.box, hitbox.matrix); result.hit)
+                            // Only fire if we have enough ammo
+                            if (!g.local_player_data.weapon.in_reload)
                             {
-                                // Only fire if we have enough ammo
-                                if (!g.local_player_data.weapon.in_reload)
-                                {
-                                    cmd->buttons |= IN_ATTACK;
-                                }
+                                cmd->buttons |= IN_ATTACK;
                             }
                         }
                     }
@@ -228,9 +237,8 @@ namespace features
         {
             int player_id;
             hitbox_numbers hitbox_id;
-            
-            float fov;
-            float distance;
+        
+            float metric;
 
             math::vec3 center;
         };
@@ -256,10 +264,9 @@ namespace features
             // Go through each hitbox
             for (auto& [key, hitbox] : g.player_data[entity->index].hitboxes)
             {
-
                 if ((this->target_hitboxes[key] || this->all_hitboxes) && key != hitbox_numbers::unknown)
                 {
-                    // Valid hitbox, get it's fov
+                    // We found a valid hitbox
                     auto matrix = hitbox.matrix;
 
                     // Test against rotated players
@@ -292,9 +299,11 @@ namespace features
                     if (sphere_test.hit || !this->fov_enabled)
                     {
                         // We found a useful target, push it to our possible target vector
+                        // Metric is the distance from crosshair + tenth of distance from head
+                        // In essence, we will get targets that are closer to our crosshair, or the ones closer to us
                         possible_targets.push_back(possible_target{
                             entity->index, static_cast<hitbox_numbers>(key),
-                            fov_result.fov, fov_result.real_distance,
+                            fov_result.fov + (fov_result.real_distance / 10),
                             center
                         });
                     }
@@ -302,15 +311,10 @@ namespace features
             }
         }
 
-        // Sort, so that we get best target first
+        // Sort based on precalculated metric
+        // We will get the best targets first
         std::sort(possible_targets.begin(), possible_targets.end(), [](const possible_target& target1, const possible_target& target2) -> bool {
-            // Metric is the distance from crosshair + tenth of distance from head
-            // In essence, we will get targets that are closer to our crosshair, or the ones closer to us
-            // NOTE: This should probably be precalculated
-            auto metric1 = (target1.fov) + (target1.distance / 10);
-            auto metric2 = (target2.fov) + (target2.distance / 10);
-
-            return metric1 < metric2;
+            return target1.metric < target2.metric;
         });
 
         // Go through each potential target

@@ -27,6 +27,7 @@ void thread_main()
 {
     auto& g = globals::instance();
 
+    g.module = module_info->instance;
     auto parent_process = GetModuleHandle(NULL);
     g.main_window = utils::get_main_window(module_info->pid);
     auto base_path = utils::get_base_path(module_info->instance);
@@ -36,6 +37,13 @@ void thread_main()
     g.base_path = base_path_str;
 
     hooks::init();
+
+    std::unique_lock<std::mutex> l(g.signal_mutex);
+    g.exit_signal.wait(l, [](){return globals::instance().should_quit;});
+
+    // Unload the dll itself
+    hooks::unload();
+    FreeLibraryAndExitThread(g.module, 0);
 }
 
 BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved)

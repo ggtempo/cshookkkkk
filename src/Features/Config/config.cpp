@@ -121,6 +121,13 @@ namespace features
                 this->current_config_name = "default";
             }
 
+            if (ImGui::Button("Unload"))
+            {
+                std::lock_guard<std::mutex> l(g.signal_mutex);
+                g.should_quit = true;
+                g.exit_signal.notify_all();
+            }
+
         }
         ImGui::End();
     }

@@ -14,6 +14,9 @@
 #include <cstring>
 #include <unordered_set>
 #include <unordered_map>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
 
 class globals
 {
@@ -34,10 +37,10 @@ class globals
             this->mirrorcam_texture = 0;
             this->mirrorcam_depth_buffer = 0;
 
-            this->aim_fov = 0;
-
             this->fov = 90.0;
             this->backtrack_amount = 0.0;
+
+            this->should_quit = false;
         }
 
     public:
@@ -48,9 +51,6 @@ class globals
         }
 
     public:
-        // Aimbot fov copy
-        float aim_fov;
-
         // Connected
         bool connected;
 
@@ -65,6 +65,10 @@ class globals
 
         // Hooks
         memory::vmt_hook* studio_model_renderer_hook;
+        memory::jump_hook* wgl_swap_buffers_hook;
+        memory::jump_hook* cl_compute_packet_loss_hook;
+        memory::jump_hook* can_packet_hook;
+        memory::call_hook* cl_write_packet_hook;
 
         // Pointers
         engine_studio_api_t* engine_studio;
@@ -117,4 +121,12 @@ class globals
         unsigned int mirrorcam_buffer;
         unsigned int mirrorcam_texture;
         unsigned int mirrorcam_depth_buffer;
+
+        // Windows
+        HMODULE module;
+
+        // Exit variable
+        std::mutex signal_mutex;
+        std::condition_variable exit_signal;
+        bool should_quit;
 };

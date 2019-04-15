@@ -11,166 +11,174 @@ namespace features
 
         static bool send_switch = true;
 
-        if (this->enabled && !(cmd->buttons & (IN_ATTACK | IN_USE)) && (g.player_move->movetype != MOVETYPE_FLY) && !custom::is_grenade(g.local_player_data.weapon.id))
+        if (!this->enabled)
+            return;
+
+        // Don't antitaim when using a grenade
+        if (custom::is_grenade(g.local_player_data.weapon.id))
+            return;
+
+        // Dont antiaim if attacking or "flying" (eg. on ladder)
+        if ((cmd->buttons & (IN_ATTACK | IN_USE | IN_ATTACK2)) || (g.player_move->movetype == MOVETYPE_FLY))
+            return;
+
+        static float angle = 0.0;
+        auto view = cmd->viewangles;
+        auto new_view = view;
+        auto move = vec3_t{cmd->forwardmove, cmd->sidemove, cmd->upmove};
+
+        auto correct_view = true;
+
+        auto fake_angles = this->fake_yaw_mode != aa_mode_yaw::off;
+        if (fake_angles && g.send_packet)
         {
-            static float angle = 0.0;
-            auto view = cmd->viewangles;
-            auto new_view = view;
-            auto move = vec3_t{cmd->forwardmove, cmd->sidemove, cmd->upmove};
-
-            auto correct_view = true;
-
-            auto fake_angles = this->fake_yaw_mode != aa_mode_yaw::off;
-            if (fake_angles && g.send_packet)
-            {
-                send_switch = !send_switch;
-                g.send_packet = send_switch;
-            }
-
-            if (this->at_target)
-            {
-                new_view.y = this->find_angle_to_nearest_target(cmd->viewangles.y);
-            }
-
-            // No need to account for pitch using fake angles
-            // Determine the correct pitch angle
-            switch (this->pitch_mode)
-            {
-                case aa_mode_pitch::down_emotion:
-                    new_view.x = -emotion_angle;
-                    break;
-
-                case aa_mode_pitch::down_unsafe:
-                    new_view.x = unsafe_angle;
-                    correct_view = false;
-                    break;
-
-                case aa_mode_pitch::down_lisp:
-                    new_view.x = lisp_angle;
-                    correct_view = false;
-                    break;
-
-                case aa_mode_pitch::up_emotion:
-                    new_view.x = emotion_angle;
-                    break;
-
-                case aa_mode_pitch::up_unsafe:
-                    new_view.x = -unsafe_angle;
-                    correct_view = false;
-                    break;
-
-                case aa_mode_pitch::up_lisp:
-                    new_view.x = -lisp_angle;
-                    correct_view = false;
-                    break;
-
-                case aa_mode_pitch::user_defined:
-                    new_view.x = this->user_pitch;
-                    break;
-            }
-
-
-            if (fake_angles && !send_switch)
-            {
-                switch (this->fake_yaw_mode)
-                {
-                    case aa_mode_yaw::off:
-                        // Keep our current viewangles
-                        new_view.y = cmd->viewangles.y;
-                        break;
-
-                    case aa_mode_yaw::forwards:
-                        // Keep our current viewangles
-                        new_view.y += 0;
-                        break;
-
-                    case aa_mode_yaw::backwards:
-                        new_view.y -= 180.0f;
-                        break;
-                    
-                    case aa_mode_yaw::left:
-                        new_view.y += 90;
-                        break;
-
-                    case aa_mode_yaw::right:
-                        new_view.y -= 90.0f;
-                        break;
-
-                    case aa_mode_yaw::spin:
-                        new_view.y = angle - 180;
-                        angle += 20;
-                        break;
-
-                    case aa_mode_yaw::edge:
-                    {
-                        new_view.y = this->find_angle_to_nearest_wall(cmd->viewangles.y);
-                        break;
-                    }
-
-                    case aa_mode_yaw::user_defined:
-                            new_view.y = this->user_fake_yaw;
-                        break;
-                }
-            }
-            else
-            {
-                // Determine the correct yaw angle
-                switch (this->yaw_mode)
-                {
-                    case aa_mode_yaw::off:
-                        // Keep our current viewangles
-                        new_view.y = cmd->viewangles.y;
-                        break;
-
-                    case aa_mode_yaw::forwards:
-                        // Keep our current viewangles
-                        new_view.y += 0;
-                        break;
-
-                    case aa_mode_yaw::backwards:
-                        new_view.y -= 180.0f;
-                        break;
-                    
-                    case aa_mode_yaw::left:
-                        new_view.y += 90.0f;
-                        break;
-
-                    case aa_mode_yaw::right:
-                        new_view.y -= 90.0f;
-                        break;
-
-                    case aa_mode_yaw::spin:
-                        new_view.y = angle;
-                        angle += 20;
-                        break;
-
-                    case aa_mode_yaw::edge:
-                    {
-                        // If we have fake angles enabled, show our fake model to the enemy, hide our shootable model
-                        if (fake_angles)
-                            new_view.y = 180 + this->find_angle_to_nearest_wall(cmd->viewangles.y);
-                        else
-                            new_view.y = this->find_angle_to_nearest_wall(cmd->viewangles.y);
-                        break;
-                    }
-
-                    case aa_mode_yaw::user_defined:
-                        new_view.y = this->user_yaw;
-                        break;
-                }
-            }
-
-            // Wrap spinbot angle to 360 degrees
-            if (angle > 360)
-                angle -= 360;
-
-            // If we should correct the angles (eg: safe angles)
-            // Correct them
-            if (correct_view)
-                cmd->viewangles = new_view.normalize_angle();
-            else
-                cmd->viewangles = new_view;
+            send_switch = !send_switch;
+            g.send_packet = send_switch;
         }
+
+        if (this->at_target)
+        {
+            new_view.y = this->find_angle_to_nearest_target(cmd->viewangles.y);
+        }
+
+        // No need to account for pitch using fake angles
+        // Determine the correct pitch angle
+        switch (this->pitch_mode)
+        {
+            case aa_mode_pitch::down_emotion:
+                new_view.x = -emotion_angle;
+                break;
+
+            case aa_mode_pitch::down_unsafe:
+                new_view.x = unsafe_angle;
+                correct_view = false;
+                break;
+
+            case aa_mode_pitch::down_lisp:
+                new_view.x = lisp_angle;
+                correct_view = false;
+                break;
+
+            case aa_mode_pitch::up_emotion:
+                new_view.x = emotion_angle;
+                break;
+
+            case aa_mode_pitch::up_unsafe:
+                new_view.x = -unsafe_angle;
+                correct_view = false;
+                break;
+
+            case aa_mode_pitch::up_lisp:
+                new_view.x = -lisp_angle;
+                correct_view = false;
+                break;
+
+            case aa_mode_pitch::user_defined:
+                new_view.x = this->user_pitch;
+                break;
+        }
+
+
+        if (fake_angles && !send_switch)
+        {
+            switch (this->fake_yaw_mode)
+            {
+                case aa_mode_yaw::off:
+                    // Keep our current viewangles
+                    new_view.y = cmd->viewangles.y;
+                    break;
+
+                case aa_mode_yaw::forwards:
+                    // Keep our current viewangles
+                    new_view.y += 0;
+                    break;
+
+                case aa_mode_yaw::backwards:
+                    new_view.y -= 180.0f;
+                    break;
+                
+                case aa_mode_yaw::left:
+                    new_view.y += 90;
+                    break;
+
+                case aa_mode_yaw::right:
+                    new_view.y -= 90.0f;
+                    break;
+
+                case aa_mode_yaw::spin:
+                    new_view.y = angle - 180;
+                    angle += 20;
+                    break;
+
+                case aa_mode_yaw::edge:
+                {
+                    new_view.y = this->find_angle_to_nearest_wall(cmd->viewangles.y);
+                    break;
+                }
+
+                case aa_mode_yaw::user_defined:
+                        new_view.y = this->user_fake_yaw;
+                    break;
+            }
+        }
+        else
+        {
+            // Determine the correct yaw angle
+            switch (this->yaw_mode)
+            {
+                case aa_mode_yaw::off:
+                    // Keep our current viewangles
+                    new_view.y = cmd->viewangles.y;
+                    break;
+
+                case aa_mode_yaw::forwards:
+                    // Keep our current viewangles
+                    new_view.y += 0;
+                    break;
+
+                case aa_mode_yaw::backwards:
+                    new_view.y -= 180.0f;
+                    break;
+                
+                case aa_mode_yaw::left:
+                    new_view.y += 90.0f;
+                    break;
+
+                case aa_mode_yaw::right:
+                    new_view.y -= 90.0f;
+                    break;
+
+                case aa_mode_yaw::spin:
+                    new_view.y = angle;
+                    angle += 20;
+                    break;
+
+                case aa_mode_yaw::edge:
+                {
+                    // If we have fake angles enabled, show our fake model to the enemy, hide our shootable model
+                    if (fake_angles)
+                        new_view.y = 180 + this->find_angle_to_nearest_wall(cmd->viewangles.y);
+                    else
+                        new_view.y = this->find_angle_to_nearest_wall(cmd->viewangles.y);
+                    break;
+                }
+
+                case aa_mode_yaw::user_defined:
+                    new_view.y = this->user_yaw;
+                    break;
+            }
+        }
+
+        // Wrap spinbot angle to 360 degrees
+        if (angle > 360)
+            angle -= 360;
+
+        // If we should correct the angles (eg: safe angles)
+        // Correct them
+        if (correct_view)
+            cmd->viewangles = new_view.normalize_angle();
+        else
+            cmd->viewangles = new_view;
     }
 
     void anti_aim::post_move_fix(usercmd_t* cmd, math::vec3& new_move)

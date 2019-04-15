@@ -293,7 +293,6 @@ namespace features
                 auto radius = (head_pos - radius_point_pos).length();
                 draw_list->AddCircle(ImVec2(head_pos.x, head_pos.y), radius, ImColor(1.0f, 1.0f, 1.0f, 1.0f), 360.0f);
             }*/
-            
         }
     }
 

@@ -11,57 +11,56 @@ namespace features
         static auto& g = globals::instance();
         auto local = g.engine_funcs->GetLocalPlayer();
 
-        if (this->enabled && (!this->on_key || GetAsyncKeyState(this->key)))
+        if (!this->enabled || !(!this->on_key || GetAsyncKeyState(this->key)))
         {
-            vec3_t start = g.player_move->origin + g.player_move->view_ofs;
-            vec3_t angles = cmd->viewangles;
-            vec3_t forward = angles.to_vector() * 8192;
+            this->next_fire = -1;
+            return;
+        }
+        
+        vec3_t start = g.player_move->origin + g.player_move->view_ofs;
+        vec3_t angles = cmd->viewangles;
+        vec3_t forward = angles.to_vector() * 8192;
 
-            // Go through every player
-            for (auto i = 1; i <= g.engine_funcs->GetMaxClients(); i++)
+        // Go through every player
+        for (auto i = 1; i <= g.engine_funcs->GetMaxClients(); i++)
+        {
+            auto entity = g.engine_funcs->GetEntityByIndex(i);
+
+            if (!utils::is_valid_player(entity))
+                continue;
+
+            if ((g.player_data[entity->index].team == g.local_player_data.team) && !this->team)
+                continue;
+
+            // If the player is valid, go through every hitbox
+            for (auto& [key, hitbox] : g.player_data[entity->index].hitboxes)
             {
-                auto entity = g.engine_funcs->GetEntityByIndex(i);
-
-                if (!utils::is_valid_player(entity))
-                    continue;
-
-                if ((g.player_data[entity->index].team == g.local_player_data.team) && !this->team)
-                    continue;
-
-                // If the player is valid, go through every hitbox
-                for (auto& [key, hitbox] : g.player_data[entity->index].hitboxes)
+                if (hitbox.visible && (this->target_hitboxes[key] || this->all_hitboxes) && key != hitbox_numbers::unknown)
                 {
-                    if (hitbox.visible && (this->target_hitboxes[key] || this->all_hitboxes) && key != hitbox_numbers::unknown)
+                    // If the hitbox is visible and should trigger shooting, check if our crosshair intersects it
+                    if (auto result = math::ray_hits_rbbox(start, forward, hitbox.box, hitbox.matrix); result.hit)
                     {
-                        // If the hitbox is visible and should trigger shooting, check if our crosshair intersects it
-                        if (auto result = math::ray_hits_rbbox(start, forward, hitbox.box, hitbox.matrix); result.hit)
-                        {
-                            // Check the current time
-                            auto now = std::chrono::high_resolution_clock().now().time_since_epoch();
-                            auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now).count();
+                        // Check the current time
+                        auto now = std::chrono::high_resolution_clock().now().time_since_epoch();
+                        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now).count();
 
-                            // Check if we should fire, or just stage the next fire
-                            if (((this->next_fire != -1) && (this->next_fire <= ms)) || (this->delay == 0) &&
-                                g.local_player_data.weapon.next_attack <= 0.0 && g.local_player_data.weapon.next_primary_attack <= 0.0 &&
-                                !g.local_player_data.weapon.in_reload)
-                            {
-                                // Fire and reset the timer
-                                cmd->buttons |= IN_ATTACK;
-                                this->next_fire = -1;
-                            }
-                            else if (this->next_fire == -1)
-                            {
-                                // Schedule the next fire
-                                this->next_fire = ms + this->delay;
-                            }
+                        // Check if we should fire, or just stage the next fire
+                        if (((this->next_fire != -1) && (this->next_fire <= ms)) || (this->delay == 0) &&
+                            g.local_player_data.weapon.next_attack <= 0.0 && g.local_player_data.weapon.next_primary_attack <= 0.0 &&
+                            !g.local_player_data.weapon.in_reload)
+                        {
+                            // Fire and reset the timer
+                            cmd->buttons |= IN_ATTACK;
+                            this->next_fire = -1;
+                        }
+                        else if (this->next_fire == -1)
+                        {
+                            // Schedule the next fire
+                            this->next_fire = ms + this->delay;
                         }
                     }
                 }
             }
-        }
-        else
-        {
-            this->next_fire = -1;
         }
     }
 

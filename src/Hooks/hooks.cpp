@@ -125,14 +125,15 @@ namespace hooks
 
         // Hook wglSwapBuffers
         uintptr_t wgl_swap_buffers = reinterpret_cast<uintptr_t>(GetProcAddress(opengl_dll, "wglSwapBuffers"));
-        // Overwrite first 5 bytes
-        g.original_wgl_swap_buffers = reinterpret_cast<uintptr_t>(memory::hook_func2(wgl_swap_buffers, reinterpret_cast<uintptr_t>(hk_wgl_swap_buffers), 5));
+    
+        g.wgl_swap_buffers_hook = new memory::jump_hook(wgl_swap_buffers, reinterpret_cast<uintptr_t>(hk_wgl_swap_buffers), 5);
+        g.original_wgl_swap_buffers = g.wgl_swap_buffers_hook->get_original_function();
 
         // Hook WindowProc
         g.original_window_proc = SetWindowLongPtr(g.main_window, GWL_WNDPROC, (LONG_PTR)&hk_wnd_proc);
     }
 
-    using message_fn = int(*)(const char *name, int size, void *buffer);
+    typedef int(*message_fn)(const char *name, int size, void *buffer);
     uintptr_t hook_message(const char* message_name, message_fn new_function)
     {
         static auto& g = globals::instance();
@@ -229,13 +230,14 @@ namespace hooks
         // Before
         // cl_write_packet_loc + 0x7A (6 bytes)
         // cl_compute_packet_loss
-        g.original_cl_compute_packet_loss = memory::hook_func2(reinterpret_cast<uintptr_t>(cl_compute_packet_loss_loc), reinterpret_cast<uintptr_t>(cl_compute_packet_loss), 6);
+        g.cl_compute_packet_loss_hook = new memory::jump_hook(reinterpret_cast<uintptr_t>(cl_compute_packet_loss_loc), reinterpret_cast<uintptr_t>(cl_compute_packet_loss), 6);
+        g.original_cl_compute_packet_loss = g.cl_compute_packet_loss_hook->get_original_function();
 
         // After
         // cl_write_packet_loc + 0xE1 (5 bytes)
-        memory::hook_func(reinterpret_cast<uintptr_t>(cl_write_packet_loc) + 0xE1, reinterpret_cast<uintptr_t>(post_write_packet_time), 5);
 
-        //memory::hook_func(reinterpret_cast<uintptr_t>(ců_write_packet_loc), reinterpret_cast<uintptr_t>(post_write_packet), 5);
+        g.cl_write_packet_hook = new memory::call_hook(reinterpret_cast<uintptr_t>(cl_write_packet_loc) + 0xE1, reinterpret_cast<uintptr_t>(post_write_packet_time), 5);
+        //memory::hook_func(reinterpret_cast<uintptr_t>(cl_write_packet_loc), reinterpret_cast<uintptr_t>(post_write_packet), 5);
     }
 
     void init()
@@ -266,7 +268,8 @@ namespace hooks
             0xD9, 0x05, 0x00, 0x00, 0x00, 0x00, 0xD8, 0x1D, 0x00, 0x00, 0x00, 0x00, 0xDF, 0xE0, 0xF6, 0xC4, 0x00, 0x8B, 0x44, 0x24
         });
 
-        g.original_can_packet = memory::hook_func2(reinterpret_cast<uintptr_t>(can_packet_ptr), reinterpret_cast<uintptr_t>(hk_netchan_canpacket), 6);
+        g.can_packet_hook = new memory::jump_hook(reinterpret_cast<uintptr_t>(can_packet_ptr), reinterpret_cast<uintptr_t>(hk_netchan_canpacket), 6);
+        g.original_can_packet = g.can_packet_hook->get_original_function();
 
         // Hook messages
         g.original_team_info = hook_message("TeamInfo", hk_team_info);
@@ -278,6 +281,42 @@ namespace hooks
         g.original_snapshot = hook_command("snapshot", hk_snapshot);
 
         features::config::instance().load_config();
+    }
+
+    // NOTE:    Can't be called from the game thread itself
+    //          Should probably be called when a flag is set (from an non-game thread)
+    void unload()
+    {
+        auto& g = globals::instance();
+
+        // Restore client functions
+        std::memcpy(g.client_funcs, g.original_client_funcs, sizeof(cldll_func_t));
+        delete g.original_client_funcs;
+
+        // Restore windows
+        SetWindowLongPtr(g.main_window, GWL_WNDPROC, (LONG_PTR)g.original_window_proc);
+
+        // Restore studio
+        g.engine_studio->StudioEntityLight = reinterpret_cast<void(*)(alight_s*)>(g.original_studio_entity_light);
+        g.engine_studio->StudioCheckBBox = reinterpret_cast<int(*)()>(g.original_studio_check_bbox);
+
+        // Restore StudioModelRenderer
+        delete g.studio_model_renderer_hook;
+
+        // Restore various hooks
+        delete g.wgl_swap_buffers_hook;
+        delete g.cl_compute_packet_loss_hook;
+        delete g.can_packet_hook;
+        delete g.cl_write_packet_hook;
+
+        // Unhook messages
+        hook_message("TeamInfo", reinterpret_cast<message_fn>(g.original_team_info));
+        hook_message("ScoreAttrib", reinterpret_cast<message_fn>(g.original_score_attrib));
+        hook_message("SetFOV", reinterpret_cast<message_fn>(g.original_set_fov));
+
+        // Unhook commands
+        hook_command("screenshot", reinterpret_cast<command_t>(g.original_screenshot));
+        hook_command("snapshot", reinterpret_cast<command_t>(g.original_snapshot));
     }
 
     cl_enginefunc_t* get_engine_funcs()

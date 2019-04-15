@@ -9,153 +9,210 @@
 
 namespace memory
 {
-    inline uint32_t set_memory_protection(uintptr_t base, size_t size, uint32_t protection)
+    // Simple RAII memory protection class
+    class memory_protect
     {
-        uint32_t old_protection;
-        VirtualProtect((LPVOID)base, size, protection, (PDWORD)&old_protection);
-        return old_protection;
-    }
+        public:
+            memory_protect(uintptr_t base, size_t size, uint32_t protection) : base(base), size(size), old_protection(0)
+            {
+                this->old_protection = memory_protect::set_memory_protection(base, size, protection);
+            }
 
-    inline uintptr_t create_executable_memory(const std::vector<uint8_t>& original_bytes, uintptr_t call_address, uintptr_t return_address)
+            ~memory_protect()
+            {
+                memory_protect::set_memory_protection(this->base, this->size, this->old_protection);
+            }
+
+        private:
+            uintptr_t base;
+            size_t size;
+            uint32_t old_protection;
+
+        public:
+            static uint32_t set_memory_protection(uintptr_t base, size_t size, uint32_t protection)
+            {
+                uint32_t old_protection;
+                VirtualProtect((LPVOID)base, size, protection, (PDWORD)&old_protection);
+                return old_protection;
+            }
+    };
+
+    // Abstract trampoline hook class
+    // Extends into: - Jump hook
+    //               - Call hook
+    class trampoline_hook
     {
-        size_t func_size = 16 + original_bytes.size() + 8;
-        uint8_t* result = reinterpret_cast<uint8_t*>(std::malloc(func_size));
-        uint32_t offset = 0;
+        public:
+            trampoline_hook(uintptr_t hook_at, uintptr_t hook_fn, size_t needed_bytes) : hooked(false), hook_at(hook_at), hook_fn(hook_fn), protection(nullptr), allocated_bytes(nullptr), original_function(0)
+            {
+                this->original_bytes.resize(needed_bytes);
+            }
 
-        auto return_address_offset = reinterpret_cast<uintptr_t>(result) + func_size - 8;
-        auto call_address_offset = reinterpret_cast<uintptr_t>(result) + func_size - 4;
+            ~trampoline_hook()
+            {
+                this->unhook();
+            }
 
-        result[offset++] = 0x9C;		// 0x9C - PUSHFD
-        result[offset++] = 0x60;		// 0x60 - PUSHAD
+            void hook()
+            {
+                this->hooked = true;
 
-        // 0xE8 0x00000000 - 0xFF 0x15 0x00000000 - CALL 32bit indirect ....
-        result[offset++] = 0xFF;
-        result[offset++] = 0x15;
-        *(uint32_t*)(result + offset) = call_address_offset; offset += 4;
-        
-        result[offset++] = 0x61;		// 0x61 - POPAD
-        result[offset++] = 0x9D;		// 0x9D - POPFD
-        
-        // Restore original bytes
-        for (auto i = 0; i < original_bytes.size(); i++)
-        {
-            result[offset++] = original_bytes[i];
-        }
+                // Set memory protection at original function
+                memory_protect protection(this->hook_at, this->original_bytes.size(), PAGE_EXECUTE_READWRITE);
 
-        // Jump to original function - 0xFF 0x25 0x00000000 - JMP 32bit absolute
-        result[offset++] = 0xFF;
-        result[offset++] = 0x25;
-        *(uint32_t*)(result + offset) = return_address_offset;
+                // Copy original bytes and NOP them out
+                auto location = reinterpret_cast<uint8_t*>(this->hook_at);
+                for (auto& original_byte : original_bytes)
+                {
+                    original_byte = *location;
+                    *location++ = 0x90;
+                }
+                
+                this->original_function = this->create_trampoline(this->hook_fn, this->hook_at + 5);
 
-        // Damn indirect jumps ...
-        *(uint32_t*)(call_address_offset) = call_address;
-        *(uint32_t*)(return_address_offset) = return_address;
-        
-        // Set protection so that we can read, write and execute
-        set_memory_protection(reinterpret_cast<uintptr_t>(result), func_size, PAGE_EXECUTE_READWRITE);
+                // Get relative address (start of trampoline - start of hooked function - 5 byte jump to trampoline)
+                uintptr_t new_offset = reinterpret_cast<uintptr_t>(this->allocated_bytes) - this->hook_at - 5;   
 
-        return reinterpret_cast<uintptr_t>(result);
-    }
+                *(uint8_t*)(this->hook_at) = 0xE9;		                            // Jump - 0xE9 0x00000000 - JMP 32bit relative
+                *(uint32_t*)(((uint8_t*)hook_at) + 1) = new_offset;                 // Jump destination (address relative to next instruction [func + 5 bytes]
+            }
 
-    inline uintptr_t hook_func(uintptr_t hook_at, uintptr_t hook_fn, size_t needed_bytes)
+            void unhook()
+            {
+                this->hooked = false;
+
+                // Set memory protecton at original function
+                memory_protect protection(this->hook_at, this->original_bytes.size(), PAGE_EXECUTE_READWRITE);
+
+                // Delete the trampoline
+                if (this->allocated_bytes)
+                    delete this->allocated_bytes;
+
+                // Delete it's protection
+                if (this->protection)
+                    delete this->protection;
+
+                auto location = reinterpret_cast<uint8_t*>(this->hook_at);
+
+                // Restore original bytes
+                for (auto original_byte : this->original_bytes)
+                    *location++ = original_byte;
+            }
+
+            uintptr_t get_original_function()
+            {
+                return this->original_function;
+            }
+
+        protected:
+            virtual uintptr_t create_trampoline(uintptr_t call_address, uintptr_t return_address) = 0;
+
+        protected:
+            bool hooked;
+            uintptr_t hook_at;
+            uintptr_t hook_fn;
+            uintptr_t original_function;
+            std::vector<uint8_t> original_bytes;
+
+            memory_protect* protection;
+            uint8_t* allocated_bytes;
+    };
+
+    class call_hook : public trampoline_hook
     {
-        // Set protection so that we can read, write and execute
-        auto old_protection = set_memory_protection(hook_at, needed_bytes, PAGE_EXECUTE_READWRITE);
+        public:
+            call_hook(uintptr_t hook_at, uintptr_t hook_fn, size_t needed_bytes) : trampoline_hook(hook_at, hook_fn, needed_bytes)
+            {
+                this->hook();
+            }
 
-        // Collect necessary bytes
-        std::vector<uint8_t> bytes;
-        for (auto i = 0; i < needed_bytes; i++)
-        {
-            bytes.push_back(*(uint8_t*)(hook_at + i));
-        }
+        protected:
+            virtual uintptr_t create_trampoline(uintptr_t call_address, uintptr_t return_address)
+            {
+                auto total_size = original_bytes.size() + 16 + 8;
+                this->allocated_bytes = new uint8_t[total_size];
 
-        auto new_fn = create_executable_memory(bytes, hook_fn, hook_at + 5);
-        intptr_t new_offset = new_fn - hook_at - 5;								// 32bit relative jumps ( - 5 because relative to next instruction )
+                // Set location as executable
+                this->protection = new memory_protect(reinterpret_cast<uintptr_t>(this->allocated_bytes), total_size, PAGE_EXECUTE_READWRITE);
 
-        *(uint8_t*)(hook_at) = 0xE9;		// Jump - 0xE9 0x00000000 - JMP 32bit relative
-        *(uint32_t*)(((uint8_t*)hook_at) + 1) = new_offset;
+                auto return_address_offset = reinterpret_cast<uintptr_t>(this->allocated_bytes) + total_size - 8;
+                auto call_address_offset = reinterpret_cast<uintptr_t>(this->allocated_bytes) + total_size - 4; 
+                
+                uint32_t offset = 0;
+                
+                this->allocated_bytes[offset++] = 0x9C;		// 0x9C - PUSHFD
+                this->allocated_bytes[offset++] = 0x60;		// 0x60 - PUSHAD
 
-        set_memory_protection(hook_at, needed_bytes, old_protection);
+                // 0xE8 0x00000000 - 0xFF 0x15 0x00000000 - CALL 32bit indirect ....
+                this->allocated_bytes[offset++] = 0xFF;
+                this->allocated_bytes[offset++] = 0x15;
+                *(uint32_t*)(this->allocated_bytes + offset) = call_address_offset; offset += 4;
+                
+                this->allocated_bytes[offset++] = 0x61;		// 0x61 - POPAD
+                this->allocated_bytes[offset++] = 0x9D;		// 0x9D - POPFD
 
-        return new_offset;
-    }
+                // Restore original bytes
+                for (auto original_byte : this->original_bytes)
+                    this->allocated_bytes[offset++] = original_byte;
 
-    inline std::pair<uintptr_t, uintptr_t> create_executable_memory2(const std::vector<uint8_t>& original_bytes, uintptr_t call_address, uintptr_t return_address)
+                // Jump to original function - 0xFF 0x25 0x00000000 - JMP 32bit absolute
+                this->allocated_bytes[offset++] = 0xFF;
+                this->allocated_bytes[offset++] = 0x25;
+                *(uint32_t*)(this->allocated_bytes + offset) = return_address_offset;
+
+                // Damn indirect jumps ...
+                *(uint32_t*)(call_address_offset) = call_address;
+                *(uint32_t*)(return_address_offset) = return_address;
+
+                return 0;
+            }
+    };
+
+    class jump_hook : public trampoline_hook
     {
-        size_t func_size = 20 + original_bytes.size();// + 3;// + 4;
-        uint8_t* result = reinterpret_cast<uint8_t*>(std::malloc(func_size));
-        uint32_t offset = 0;
+        public:
+            jump_hook(uintptr_t hook_at, uintptr_t hook_fn, size_t needed_bytes) : trampoline_hook(hook_at, hook_fn, needed_bytes)
+            {
+                this->hook();
+            }
 
-        auto return_address_offset = reinterpret_cast<uintptr_t>(result) + func_size - 8;
-        auto call_address_offset = reinterpret_cast<uintptr_t>(result) + func_size - 4;
+        protected:
+            virtual uintptr_t create_trampoline(uintptr_t call_address, uintptr_t return_address)
+            {
+                auto total_size = original_bytes.size() + 20;
+                this->allocated_bytes = new uint8_t[total_size];
 
-        //result[offset++] = 0x9C;		// 0x9C - PUSHFD
-        //result[offset++] = 0x60;		// 0x60 - PUSHAD
+                // Set location as executable
+                this->protection = new memory_protect(reinterpret_cast<uintptr_t>(this->allocated_bytes), total_size, PAGE_EXECUTE_READWRITE);
 
-        // 0xE8 0x00000000 - 0xFF 0x25 0x00000000 - JMP 32bit indirect ....
-        result[offset++] = 0xFF;
-        result[offset++] = 0x25;
-        *(uint32_t*)(result + offset) = call_address_offset; offset += 4;
+                auto return_address_offset = reinterpret_cast<uintptr_t>(this->allocated_bytes) + total_size - 8;
+                auto call_address_offset = reinterpret_cast<uintptr_t>(this->allocated_bytes) + total_size - 4; 
+                
+                uint32_t offset = 0;
+                
+                // 0xFF 0x25 0x00000000 - JMP 32bit indirect ....
+                this->allocated_bytes[offset++] = 0xFF;
+                this->allocated_bytes[offset++] = 0x25;
+                *(uint32_t*)(this->allocated_bytes + offset) = call_address_offset; offset += 4;
 
-        uintptr_t post_hook_address = reinterpret_cast<uintptr_t>(result) + offset;
+                uintptr_t post_hook_address = reinterpret_cast<uintptr_t>(this->allocated_bytes) + offset;
 
-        // We add 4 to ESP so that the call from the original function correctly restores using POPAD, POPFD
-        //result[offset++] = 0x83;        // Add
-        //result[offset++] = 0xc4;        // ESP
-        //result[offset++] = 0x4;         // 4
+                // Restore original bytes
+                for (auto original_byte : this->original_bytes)
+                    this->allocated_bytes[offset++] = original_byte;
 
-        //result[offset++] = 0x61;		// 0x61 - POPAD
-        //result[offset++] = 0x9D;		// 0x9D - POPFD
-        
+                // Jump to original function - 0xFF 0x25 0x00000000 - JMP 32bit absolute
+                this->allocated_bytes[offset++] = 0xFF;
+                this->allocated_bytes[offset++] = 0x25;
+                *(uint32_t*)(this->allocated_bytes + offset) = return_address_offset;
 
-        // Restore original bytes
-        for (auto i = 0; i < original_bytes.size(); i++)
-        {
-            result[offset++] = original_bytes[i];
-        }
+                // Damn indirect jumps ...
+                *(uint32_t*)(call_address_offset) = call_address;
+                *(uint32_t*)(return_address_offset) = return_address;
 
-        // Jump to original function - 0xFF 0x25 0x00000000 - JMP 32bit absolute
-        result[offset++] = 0xFF;
-        result[offset++] = 0x25;
-        *(uint32_t*)(result + offset) = return_address_offset;
-
-        // Damn indirect jumps ...
-        *(uint32_t*)(call_address_offset) = call_address;
-        *(uint32_t*)(return_address_offset) = return_address;
-
-        // Set protection so that we can read, write and execute
-        set_memory_protection(reinterpret_cast<uintptr_t>(result), func_size, PAGE_EXECUTE_READWRITE);
-
-        return std::make_pair(reinterpret_cast<uintptr_t>(result), post_hook_address);
-    }
-
-    inline uintptr_t hook_func2(uintptr_t hook_at, uintptr_t hook_fn, size_t needed_bytes)
-    {
-        // Set protection so that we can read, write and execute
-        auto old_protection = set_memory_protection(hook_at, needed_bytes, PAGE_EXECUTE_READWRITE);
-
-        // Collect necessary bytes
-        std::vector<uint8_t> bytes;
-        for (auto i = 0; i < needed_bytes; i++)
-        {
-            bytes.push_back(*(uint8_t*)(hook_at + i));
-        }
-
-        auto new_fn = create_executable_memory2(bytes, hook_fn, hook_at + needed_bytes);//5);
-        intptr_t new_offset = new_fn.first - hook_at - 5;						// 32bit relative jumps ( - 5 because relative to next instruction )
-
-        for (auto i = 0; i < needed_bytes; i++)
-        {
-            *(uint8_t*)(hook_at + i) = 0x90;
-        }
-
-        *(uint8_t*)(hook_at) = 0xE9;		// Jump - 0xE9 0x00000000 - JMP 32bit relative
-        *(uint32_t*)(((uint8_t*)hook_at) + 1) = new_offset;
-
-        set_memory_protection(hook_at, needed_bytes, old_protection);
-
-        return new_fn.second;
-    }
+                return post_hook_address;
+            }
+    };
 
     inline uint32_t* find_location(uint8_t* base, size_t size, std::vector<uint8_t> bytes, int32_t add = 0, bool substract_module = false)
     {
@@ -230,31 +287,6 @@ namespace memory
         return find_location(reinterpret_cast<uint8_t*>(info.lpBaseOfDll), info.SizeOfImage, bytes, add, substract_module);
     }
 
-    // Simple RAII memory protection class
-    class memory_protect
-    {
-        private:
-            uint32_t base;
-            size_t size;
-            uint32_t old;
-
-        public:
-            memory_protect(void* base, size_t size, uint32_t level)
-            {
-                this->base = (uint32_t)base;
-                this->size = size;
-                this->old = 0;
-
-                VirtualProtect(base, this->size, level, (PDWORD)&this->old);
-            }
-
-            ~memory_protect()
-            {
-                VirtualProtect((void*)this->base, this->size, this->old, NULL);
-            }
-    };
-
-
     // VMT Hooking class
     class vmt_hook
     {
@@ -298,7 +330,7 @@ namespace memory
             {
                 if (!this->hooked)
                 {
-                    this->protect = std::make_unique<memory_protect>(this->base, this->_size, PAGE_READWRITE);
+                    this->protect = std::make_unique<memory_protect>(reinterpret_cast<uintptr_t>(this->base), this->_size, PAGE_READWRITE);
                     *(uint32_t**)(this->base) = this->new_vmt;
                     this->hooked = true;
                 }
@@ -345,7 +377,7 @@ namespace memory
     };
 
     template <typename T>
-    T get_vfunc(void* base, uint32_t position)
+    inline T get_vfunc(void* base, uint32_t position)
     {
         uint32_t* vmt = *(uint32_t**)base;
 
