@@ -29,8 +29,6 @@ namespace hooks
 
         if (g.first)
         {
-            g.first = false;
-
             // Load GL
             ImGui_Impl_LoadGL();check_gl_error();
 
@@ -114,6 +112,7 @@ namespace hooks
             glBindTexture(GL_TEXTURE_2D, 0);check_gl_error();
             glBindFramebuffer(GL_FRAMEBUFFER, 0);check_gl_error();
 
+            g.first = false;
         }
 
         GLint viewport[4];
@@ -146,6 +145,7 @@ namespace hooks
 
         // Render ESP
         features::visuals::instance().swap_buffers();
+        features::miscelaneous::instance().swap_buffers();
 
         features::menu::instance().show_menu();
 
@@ -162,7 +162,7 @@ namespace hooks
         glMatrixMode(GL_PROJECTION);check_gl_error();
         glPopMatrix();check_gl_error();
 
-        features::miscelaneous::instance().swap_buffers();
+        features::miscelaneous::instance().swap_buffers_end();
 
         return original_func(hDc);
     }

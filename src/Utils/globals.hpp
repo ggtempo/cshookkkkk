@@ -64,45 +64,45 @@ class globals
         std::string base_path;
 
         // Hooks
-        memory::vmt_hook* studio_model_renderer_hook;
-        memory::jump_hook* wgl_swap_buffers_hook;
-        memory::jump_hook* cl_compute_packet_loss_hook;
-        memory::jump_hook* can_packet_hook;
-        memory::call_hook* cl_write_packet_hook;
+        memory::vmt_hook* studio_model_renderer_hook = nullptr;
+        memory::jump_hook* wgl_swap_buffers_hook = nullptr;
+        memory::jump_hook* cl_compute_packet_loss_hook = nullptr;
+        memory::jump_hook* can_packet_hook = nullptr;
+        memory::call_hook* cl_write_packet_hook = nullptr;
 
         // Pointers
-        engine_studio_api_t* engine_studio;
-        cl_enginefunc_t*	engine_funcs;
-        cldll_func_t*		original_client_funcs;
-        cldll_func_t*		client_funcs;
-        playermove_t*		player_move;
-        usercmd_t*          last_cmd;
+        engine_studio_api_t* engine_studio = 0;
+        cl_enginefunc_t*	engine_funcs = 0;
+        cldll_func_t*		original_client_funcs = 0;
+        cldll_func_t*		client_funcs = 0;
+        playermove_t*		player_move = 0;
+        usercmd_t*          last_cmd = 0;
 
-        uintptr_t           original_studio_entity_light;
-        uintptr_t           original_team_info;
-        uintptr_t           original_cur_weapon;
-        uintptr_t           original_score_attrib;
-        uintptr_t           original_damage;
-        uintptr_t           original_studio_check_bbox;
-        uintptr_t           original_can_packet;
-        uintptr_t           original_set_fov;
+        uintptr_t           original_studio_entity_light = 0;
+        uintptr_t           original_team_info = 0;
+        uintptr_t           original_cur_weapon = 0;
+        uintptr_t           original_score_attrib = 0;
+        uintptr_t           original_damage = 0;
+        uintptr_t           original_studio_check_bbox = 0;
+        uintptr_t           original_can_packet = 0;
+        uintptr_t           original_set_fov = 0;
 
-        uintptr_t           original_screenshot;
-        uintptr_t           original_snapshot;
+        uintptr_t           original_screenshot = 0;
+        uintptr_t           original_snapshot = 0;
 
-        uintptr_t           original_cl_compute_packet_loss;
+        uintptr_t           original_cl_compute_packet_loss = 0;
 
-        globalvars_t*       game_globals;
-        globalvars_t**      game_globals_2;
+        globalvars_t*       game_globals = 0;
+        globalvars_t**      game_globals_2 = 0;
 
-        double*             engine_time;
+        double*             engine_time = nullptr;
         double              engine_time_backup;
-        double*             host_realtime;
+        double*             host_realtime = nullptr;
 
-        uintptr_t           get_weapon_info;
+        uintptr_t           get_weapon_info = 0;
 
-        uintptr_t           original_window_proc;
-        uintptr_t           original_wgl_swap_buffers;
+        uintptr_t           original_window_proc = 0;
+        uintptr_t           original_wgl_swap_buffers = 0;
         HWND                main_window;
 
         // Helpers and useful data

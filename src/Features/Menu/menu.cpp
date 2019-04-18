@@ -68,7 +68,7 @@ namespace features
                     auto size = ImGui::CalcTextSize("00:00:00");
                     right_offset += size.x;
                     ImGui::SetCursorPos(ImVec2(title_bar_size.x - right_offset, 0));
-                    ImGui::Text("%02d:%02d:%0-2d", time.wHour, time.wMinute, time.wSecond);
+                    ImGui::Text("%02d:%02d:%02d", time.wHour, time.wMinute, time.wSecond);
 
                     right_offset += 110;
                 }

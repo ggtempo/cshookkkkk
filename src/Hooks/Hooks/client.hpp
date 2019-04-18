@@ -24,17 +24,21 @@ namespace hooks
         // Reset create move
         g.send_packet = true;
 
-        if (!lp || !lp->player || !active)
-            return;
-
         // Update entity alive/dormant status
         utils::update_status();
+
+        // Only proceed if connected and 
+        if (!g.connected)
+            return;
+
+        if (!lp || !lp->player || !active)
+            return;
 
         // Update local player velocity
         g.local_player_data.velocity = g.player_move->velocity;
 
-        // Only proceed if connected and alive
-        if (!g.connected || !g.local_player_data.alive)
+        // Check if player is alive
+        if (!g.local_player_data.alive)
             return;
 
         // Update entity visibility status

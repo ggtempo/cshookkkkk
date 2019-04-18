@@ -82,7 +82,7 @@ namespace features
 
     bool miscelaneous::is_thirdperson()
     {
-        return this->third_person_enabled;
+        return this->third_person_enabled && this->can_show();
     }
 
     void miscelaneous::show_menu()
@@ -118,7 +118,7 @@ namespace features
     {
         static auto& g = globals::instance();
 
-        if (this->mirror_cam_enabled)
+        if (this->mirror_cam_enabled && this->can_show())
         {
             ImGui::Begin("Mirrorcam");
                 auto pos = ImGui::GetCursorScreenPos();
@@ -127,6 +127,11 @@ namespace features
                 ImGui::GetWindowDrawList()->AddImage((void*)g.mirrorcam_texture, pos, bottom_right, ImVec2(0, 1), ImVec2(1, 0));
             ImGui::End();
         }
+    }
+
+    void miscelaneous::swap_buffers_end()
+    {
+        static auto& g = globals::instance();
 
         if (this->taking_screenshot)
         {

@@ -123,9 +123,11 @@ namespace features
 
             if (ImGui::Button("Unload"))
             {
-                std::lock_guard<std::mutex> l(g.signal_mutex);
+                /*std::lock_guard<std::mutex> l(g.signal_mutex);
                 g.should_quit = true;
-                g.exit_signal.notify_all();
+                g.exit_signal.notify_all();*/
+
+                g.should_quit = true;
             }
 
         }

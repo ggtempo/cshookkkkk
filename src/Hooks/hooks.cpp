@@ -81,7 +81,7 @@ namespace hooks
 
         // Get StudioModelInterface
         uint32_t offset = reinterpret_cast<uint32_t>(memory::get_module_info("client.dll").lpBaseOfDll);
-        auto HUD_GetStudioModelInterface = (uint32_t)hooks::get_client_funcs()->pStudioInterface;
+        auto HUD_GetStudioModelInterface = reinterpret_cast<uintptr_t>(g.original_client_funcs->pStudioInterface);
 
         // Steal EngineStudio from StudioModelInterface
         g.engine_studio = *reinterpret_cast<engine_studio_api_s**>(HUD_GetStudioModelInterface + 0x1A);

@@ -68,6 +68,7 @@ namespace features
             bool can_show();
 
             void swap_buffers();
+            void swap_buffers_end();
             void on_screenshot();
             void on_snapshot();
 

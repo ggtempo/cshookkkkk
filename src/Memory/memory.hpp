@@ -291,15 +291,6 @@ namespace memory
     class vmt_hook
     {
         public:
-            uint32_t** base;
-            uint32_t* old_vmt;
-            uint32_t* new_vmt;
-            size_t _size;
-            bool hooked;
-
-            std::unique_ptr<memory_protect> protect;
-
-        public:
             vmt_hook(void* base)
             {
                 this->base = (uint32_t**)base;
@@ -330,7 +321,7 @@ namespace memory
             {
                 if (!this->hooked)
                 {
-                    this->protect = std::make_unique<memory_protect>(reinterpret_cast<uintptr_t>(this->base), this->_size, PAGE_READWRITE);
+                    memory_protect protection(reinterpret_cast<uintptr_t>(this->base), this->_size, PAGE_READWRITE);
                     *(uint32_t**)(this->base) = this->new_vmt;
                     this->hooked = true;
                 }
@@ -338,9 +329,12 @@ namespace memory
 
             void unhook()
             {
-                *(uint32_t**)(this->base) = this->old_vmt;
-                this->hooked = false;
-                this->protect.release();
+                if (this->hooked)
+                {
+                    memory_protect protection(reinterpret_cast<uintptr_t>(this->base), this->_size, PAGE_READWRITE);
+                    *(uint32_t**)(this->base) = this->old_vmt;
+                    this->hooked = false;
+                }
             }
 
             void hook_vfunc(void* func, uint32_t position)
@@ -374,6 +368,13 @@ namespace memory
             {
                 return reinterpret_cast<T>(this->base);
             }
+
+        public:
+            uint32_t** base;
+            uint32_t* old_vmt;
+            uint32_t* new_vmt;
+            size_t _size;
+            bool hooked;
     };
 
     template <typename T>

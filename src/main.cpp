@@ -38,8 +38,13 @@ void thread_main()
 
     hooks::init();
 
-    std::unique_lock<std::mutex> l(g.signal_mutex);
-    g.exit_signal.wait(l, [](){return globals::instance().should_quit;});
+    //std::unique_lock<std::mutex> l(g.signal_mutex);
+    //g.exit_signal.wait(l, [](){return globals::instance().should_quit;});
+
+    while (!g.should_quit)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
 
     // Unload the dll itself
     hooks::unload();
@@ -69,8 +74,6 @@ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved)
 
         return true;
     }
-    else
-    {
-        return true;
-    }
+    
+    return true;
 }

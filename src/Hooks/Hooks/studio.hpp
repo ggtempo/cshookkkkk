@@ -36,7 +36,7 @@ namespace hooks
         g.engine_studio->SetChromeOrigin();
         g.engine_studio->SetForceFaceFlags( 0 );
 
-        if ( entity->curstate.renderfx == render_effects::kRenderFxGlowShell )
+        if ( entity->curstate.renderfx == render_effects::kRenderFxGlowShell  || g.first)
         {
             original_func(ecx);
         }

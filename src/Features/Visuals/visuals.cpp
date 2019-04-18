@@ -175,8 +175,6 @@ namespace features
         // Restore default style
         ImGui::End();
         ImGui::PopStyleVar(4);
-
-        features::miscelaneous::instance().swap_buffers();
     }
 
     void visuals::draw_esp()
