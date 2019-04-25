@@ -1,5 +1,6 @@
 #include "miscelaneous.hpp"
 #include <glad/gl.h>
+#include <random>
 #include "../Utils/utils.hpp"
 #include "../../ImGui/imgui.h"
 #include "../../ImGui/imgui_impl.h"
@@ -80,6 +81,22 @@ namespace features
         }
     }
 
+    int miscelaneous::initiate_game_connection(void *ecx, int *data, int max_data, long long steam_id, int server_ip, short server_port, int secure)
+    {
+        using initiate_game_connection_fn = int(__thiscall*)(void *ecx, int *data, int max_data, long long steam_id, int server_ip, short server_port, int secure);
+        static auto& g = globals::instance();
+        static auto original_func = g.steamapi_hook->get_original_vfunc<initiate_game_connection_fn>(3);
+
+        if (!this->steam_id_changer_enabled)
+            return original_func(ecx, data, max_data, steam_id, server_ip, server_port, secure);
+
+
+        data[20] = -1;
+        data[21] = this->steam_id;
+
+        return 768;
+    }
+
     bool miscelaneous::is_thirdperson()
     {
         return this->third_person_enabled && this->can_show();
@@ -98,9 +115,21 @@ namespace features
                 ImGui::Checkbox("Hide on screenshots", &this->hide_on_screenshot);
 
                 float float_backtrack_time = g.backtrack_amount;
-                ImGui::SliderFloat("Backtrack time", &float_backtrack_time, 0, 99999);
+                ImGui::SliderFloat("Backtrack time", &float_backtrack_time, 0, 10);
                 g.backtrack_amount = float_backtrack_time;
 
+                ImGui::Checkbox("### SteamID changer enabled", &this->steam_id_changer_enabled);
+                ImGui::SameLine();
+                if (ImGui::Button("Randomize"))
+                {
+                    static std::random_device dev;
+                    static std::mt19937 gen(dev());
+                    static std::uniform_int_distribution<int> dist(1000000,7000000);
+
+                    this->steam_id = dist(gen);
+                }
+                ImGui::SameLine();
+                ImGui::InputInt("Steam ID changer", &this->steam_id, 0, 0, ImGuiInputTextFlags_EnterReturnsTrue);
 
             ImGui::NextColumn();
                 features::removals::instance().show_menu();

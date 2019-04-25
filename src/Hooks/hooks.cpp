@@ -202,10 +202,21 @@ namespace hooks
         // Then modify host realtime
         g.engine_time_backup = *g.engine_time;
 
-        if (GetAsyncKeyState(VK_MENU))
+        /*
+        *g.engine_time = 0;
+        *g.host_realtime = 0;
+
+        if (GetAsyncKeyState(VK_F2))
         {
             *g.engine_time -= g.backtrack_amount;
         }
+
+        if (GetAsyncKeyState(VK_F3))
+        {
+            *g.engine_time = g.backtrack_amount;
+        }
+
+        */
     }
 
     void post_write_packet_time()
@@ -225,7 +236,7 @@ namespace hooks
         auto cl_compute_packet_loss_loc = memory::find_location("hw.dll", {0x55, 0x8b, 0xec, 0x83, 0xe4, 0xf8, 0x83, 0xec, 0x0c, 0xdd, 0x05, 0x00, 0x00, 0x00, 0x00, 0xdc, 0x1d, 0x00, 0x00, 0x00, 0x00});
         
         // Host realtime
-        //g.host_realtime = *(double**)(reinterpret_cast<uintptr_t>(cl_compute_packet_loss_loc) + 0xB);
+        g.host_realtime = *(double**)(reinterpret_cast<uintptr_t>(cl_compute_packet_loss_loc) + 0xB);
 
         // Before
         // cl_write_packet_loc + 0x7A (6 bytes)
@@ -238,6 +249,47 @@ namespace hooks
 
         g.cl_write_packet_hook = new memory::call_hook(reinterpret_cast<uintptr_t>(cl_write_packet_loc) + 0xE1, reinterpret_cast<uintptr_t>(post_write_packet_time), 5);
         //memory::hook_func(reinterpret_cast<uintptr_t>(cl_write_packet_loc), reinterpret_cast<uintptr_t>(post_write_packet), 5);
+    }
+
+    int __fastcall initiate_game_connection_hook(void *ecx, void* edx, int *data, int max_data, long long steam_id, int server_ip, short server_port, int secure)
+    {
+        return features::miscelaneous::instance().initiate_game_connection(ecx, data, max_data, steam_id, server_ip, server_port, secure);
+    }
+
+    void hook_steamapi()
+    {
+        static auto& g = globals::instance();
+
+        // Hooking the steamemu steamid generator
+        // Wont work on any other version
+
+        auto steamapi_dll = GetModuleHandleA("steam_api.dll");
+        if (!steamapi_dll)
+        {
+            // Failed to get steam_api
+            return;
+        }
+
+        using steam_user_fn = void*(*)();
+        auto steam_user = reinterpret_cast<steam_user_fn>(GetProcAddress(steamapi_dll, "SteamUser"));
+        if (!steam_user)
+        {
+            // Failed to get steam_user
+            return;
+        }
+
+        auto user = steam_user();
+        if (!user)
+        {
+            // Failed to get user ptr
+            return;
+        }
+
+        g.engine_funcs->Con_Printf("Found user at: 0x%X\n", user);
+
+        g.steamapi_hook = new memory::vmt_hook(user);
+        g.steamapi_hook->hook_vfunc(reinterpret_cast<void*>(initiate_game_connection_hook), 3);
+        g.steamapi_hook->hook();
     }
 
     void init()
@@ -260,6 +312,7 @@ namespace hooks
         hook_studio();
         hook_gl();
         hook_writepacket();
+        hook_steamapi();
 
         g.engine_time = *(double**)(g.engine_funcs->pNetAPI->Status + 0x84);
 
@@ -302,6 +355,9 @@ namespace hooks
 
         // Restore StudioModelRenderer
         delete g.studio_model_renderer_hook;
+
+        // Restore Steam api
+        delete g.steamapi_hook;
 
         // Restore various hooks
         delete g.wgl_swap_buffers_hook;

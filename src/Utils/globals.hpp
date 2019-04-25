@@ -65,6 +65,7 @@ class globals
 
         // Hooks
         memory::vmt_hook* studio_model_renderer_hook = nullptr;
+        memory::vmt_hook* steamapi_hook = nullptr;
         memory::jump_hook* wgl_swap_buffers_hook = nullptr;
         memory::jump_hook* cl_compute_packet_loss_hook = nullptr;
         memory::jump_hook* can_packet_hook = nullptr;

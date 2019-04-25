@@ -38,16 +38,17 @@ void thread_main()
 
     hooks::init();
 
-    //std::unique_lock<std::mutex> l(g.signal_mutex);
-    //g.exit_signal.wait(l, [](){return globals::instance().should_quit;});
-
-    while (!g.should_quit)
-    {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
+    // Wait until the user wants to quit
+    std::unique_lock<std::mutex> l(g.signal_mutex);
+    g.exit_signal.wait(l, [](){return globals::instance().should_quit;});
 
     // Unload the dll itself
+    // Waiting seems to make this crash less often
+    // Could possibly be solved by first unhooking by restoring original bytes
+    // Then waiting a short moment, then deleting the rest
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     hooks::unload();
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     FreeLibraryAndExitThread(g.module, 0);
 }
 
