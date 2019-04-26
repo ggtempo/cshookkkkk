@@ -36,7 +36,7 @@ namespace hooks
         uint8_t index = READ_BYTE();
         uint8_t status = READ_BYTE();
 
-        if ((index >= 0) && (index < g.engine_funcs->GetMaxClients()) && (index != g.engine_funcs->GetLocalPlayer()->index))
+        if ((index >= 0) && (index <= g.engine_funcs->GetMaxClients()) && (index != g.engine_funcs->GetLocalPlayer()->index))
         {           
             g.player_data[index].alive = !(status & 1);
         }
@@ -62,7 +62,7 @@ namespace hooks
 
         auto local = g.engine_funcs->GetLocalPlayer();
 
-        if (index >= 0 && index < g.engine_funcs->GetMaxClients())
+        if (index >= 0 && index <= g.engine_funcs->GetMaxClients())
         {
             custom::player_team team;
             if (std::strcmp(team_str, "CT") == 0)

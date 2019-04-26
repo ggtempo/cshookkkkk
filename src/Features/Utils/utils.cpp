@@ -69,7 +69,7 @@ namespace utils
             if (!updated || entity->curstate.messagenum < local->curstate.messagenum)
                 updated = false;
 
-            if (!updated || entity->curstate.solid != 3 || (local->curstate.iuser1 == 4 && local->curstate.iuser2 == entity->index))
+            if (!updated /*|| entity->curstate.solid != 3*/ || (local->curstate.iuser1 == 4 && local->curstate.iuser2 == entity->index))
                 updated = false;
 
             g.player_data[entity->index].dormant = !updated;
@@ -79,12 +79,17 @@ namespace utils
                 // Update position and velocity
                 g.player_data[entity->index].origin = entity->origin;
                 g.player_data[entity->index].velocity = entity->curstate.velocity;
-
-                hud_player_info_t info = {};
-                g.engine_funcs->pfnGetPlayerInfo(entity->index, &info);
-
-                g.player_data[entity->index].name = info.name;
             }
+
+            // Attempt to get players name, even when not updated
+
+            if (!entity)
+                continue;
+
+            hud_player_info_t info = {};
+            g.engine_funcs->pfnGetPlayerInfo(entity->index, &info);
+
+            g.player_data[entity->index].name = info.name;
             
         }
     }

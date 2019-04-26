@@ -18,6 +18,7 @@ namespace features
                 this->anti_aim_menu_enabled = false;
                 this->misc_menu_enabled = false;
                 this->settings_menu_enabled = false;
+                this->playerlist_menu_enabled = false;
             }
         
         public:
@@ -38,5 +39,6 @@ namespace features
             bool anti_aim_menu_enabled;
             bool misc_menu_enabled;
             bool settings_menu_enabled;
+            bool playerlist_menu_enabled;
     };
 }

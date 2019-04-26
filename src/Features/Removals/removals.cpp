@@ -140,7 +140,16 @@ namespace features
             (g.local_player_data.weapon.next_attack <= 0.0) && (g.local_player_data.weapon.next_primary_attack <= 0.0) &&
             !g.local_player_data.weapon.in_reload)
         {
-            cmd->viewangles -= g.punch_angles * 2;
+            auto new_punch_angles = g.punch_angles;
+            float len = new_punch_angles.length();
+            new_punch_angles.normalize();
+            len -= (10.0 + len * 0.5) * frametime;
+            len = std::max(len, 0.0f);
+
+            new_punch_angles *= len;
+            new_punch_angles *= 2;
+
+            cmd->viewangles -= new_punch_angles;
             cmd->viewangles.z = 0.0f;
 
             cmd->viewangles.normalize_angle();

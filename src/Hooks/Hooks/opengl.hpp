@@ -14,6 +14,32 @@
 
 namespace hooks
 {
+    inline void load_image(const unsigned char* image_data, unsigned int length, unsigned int& texture_id)
+    {
+        // Gear icon load
+        int icon_width = 0, icon_height = 0;
+        int n = 0;
+        auto image = stbi_load_from_memory(image_data, length, &icon_width, &icon_height, &n, 0);
+
+        glGenTextures(1, &texture_id);check_gl_error();
+        glBindTexture(GL_TEXTURE_2D, texture_id);check_gl_error();
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);check_gl_error();	
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);check_gl_error();
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);check_gl_error();
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);check_gl_error();
+
+        int32_t mode = GL_RGB;                                                                 // The surface mode
+        if(n == 4) {
+            mode = GL_RGBA;
+        }
+
+        glTexImage2D(GL_TEXTURE_2D, 0, mode, icon_width, icon_height, 0, mode, GL_UNSIGNED_BYTE, image);check_gl_error();
+        glGenerateMipmap(GL_TEXTURE_2D);check_gl_error();                                       // Not sure if generating mipmaps for a 2D game is necessary
+
+        stbi_image_free(image);
+    }
+
     BOOL __stdcall hk_wgl_swap_buffers(HDC hDc)
     {
         using wgl_swap_buffers_fn = BOOL(__stdcall*)(HDC);
@@ -53,28 +79,11 @@ namespace hooks
             // Setup Platform/Renderer bindings
             ImGui_Impl_Init(g.main_window);check_gl_error();
 
-            // Gear icon load
-            int icon_width = 0, icon_height = 0;
-            int n = 0;
-            auto image = stbi_load_from_memory(gear_icon, gear_icon_length, &icon_width, &icon_height, &n, 0);
+            // Load gear
+            hooks::load_image(gear_icon, gear_icon_length, g.gear_icon_id);
 
-            glGenTextures(1, &g.gear_icon_id);check_gl_error();
-            glBindTexture(GL_TEXTURE_2D, g.gear_icon_id);check_gl_error();
-
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);check_gl_error();	
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);check_gl_error();
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);check_gl_error();
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);check_gl_error();
-
-            int32_t mode = GL_RGB;                                                                 // The surface mode
-            if(n == 4) {
-                mode = GL_RGBA;
-            }
-
-            glTexImage2D(GL_TEXTURE_2D, 0, mode, icon_width, icon_height, 0, mode, GL_UNSIGNED_BYTE, image);check_gl_error();
-            glGenerateMipmap(GL_TEXTURE_2D);check_gl_error();                                       // Not sure if generating mipmaps for a 2D game is necessary
-
-            stbi_image_free(image);
+            // Load person
+            hooks::load_image(person_icon, person_icon_length, g.person_icon_id);
 
             // Mirrorcam framebuffer / texture
             // Generate necessary buffer

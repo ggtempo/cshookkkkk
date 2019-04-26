@@ -26,6 +26,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "../Resources/stb_image.h"
 #include "../Resources/gear.hpp"
+#include "../Resources/person.hpp"
 
 #include "Hooks/studio.hpp"
 #include "Hooks/messages.hpp"

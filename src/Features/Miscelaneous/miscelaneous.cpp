@@ -1,5 +1,6 @@
 #include "miscelaneous.hpp"
 #include <glad/gl.h>
+#include <chrono>
 #include <random>
 #include "../Utils/utils.hpp"
 #include "../../ImGui/imgui.h"
@@ -122,14 +123,14 @@ namespace features
                 ImGui::SameLine();
                 if (ImGui::Button("Randomize"))
                 {
-                    static std::random_device dev;
-                    static std::mt19937 gen(dev());
+                    auto time_point = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+                    static std::mt19937 gen(time_point);
                     static std::uniform_int_distribution<int> dist(1000000,7000000);
 
                     this->steam_id = dist(gen);
                 }
                 ImGui::SameLine();
-                ImGui::InputInt("Steam ID changer", &this->steam_id, 0, 0, ImGuiInputTextFlags_EnterReturnsTrue);
+                ImGui::InputInt("Steam ID changer", &this->steam_id, 0, 0);
 
             ImGui::NextColumn();
                 features::removals::instance().show_menu();

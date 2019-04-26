@@ -119,6 +119,7 @@ class globals
 
         // Opengl
         unsigned int gear_icon_id;
+        unsigned int person_icon_id;
         unsigned int mirrorcam_buffer;
         unsigned int mirrorcam_texture;
         unsigned int mirrorcam_depth_buffer;

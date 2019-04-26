@@ -11,6 +11,7 @@
 #include "../Visuals/visuals.hpp"
 #include "../Config/config.hpp"
 #include "../Miscelaneous/miscelaneous.hpp"
+#include "../Playerlist/playerlist.hpp"
 
 namespace features
 {
@@ -62,7 +63,7 @@ namespace features
                 ImGui::SameLine();
                 ImGui::Separator();
 
-                float right_offset = 10 + 19;
+                float right_offset = 10 + 19 + 19;
 
                 {
                     auto size = ImGui::CalcTextSize("00:00:00");
@@ -80,6 +81,7 @@ namespace features
                     ImGui::Text("CSHook by DJ_Luigi");
                 }
 
+                // Settings button
                 ImGui::SetCursorPos(ImVec2(title_bar_size.x - 19.0f, 0.0f));
                 {
                     if (ImGui::Button("###Settings", ImVec2(19.0f, 19.0f)))
@@ -92,9 +94,22 @@ namespace features
                     {
                         draw_list->AddImage((void*)g.gear_icon_id, ImVec2(title_bar_size.x - 19.0f, 0.0f), ImVec2(title_bar_size.x, 19.0f));
                     }
-                    //ImGui::ImageButton((void*)g.gear_icon_id, ImVec2(19.0f, 19.0f));
                 }
                 
+                // Playerlist button
+                ImGui::SetCursorPos(ImVec2(title_bar_size.x - 38.0f, 0.0f));
+                {
+                    if (ImGui::Button("###Playerlist", ImVec2(19.0f, 19.0f)))
+                    {
+                        this->playerlist_menu_enabled = !this->playerlist_menu_enabled;
+                    }
+
+                    auto draw_list = ImGui::GetWindowDrawList();
+                    if (draw_list)
+                    {
+                        draw_list->AddImage((void*)g.person_icon_id, ImVec2(title_bar_size.x - 38.0f, 0.0f), ImVec2(title_bar_size.x - 19.0f, 19.0f));
+                    }
+                }
 
                 ImGui::PopStyleVar();
 
@@ -129,6 +144,11 @@ namespace features
             if (this->settings_menu_enabled && this->menu_enabled)
             {
                 features::config::instance().show_menu();
+            }
+
+            if (this->playerlist_menu_enabled && this->menu_enabled)
+            {
+                features::playerlist::instance().show_menu();
             }
         }
     }
