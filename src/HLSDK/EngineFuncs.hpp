@@ -101,6 +101,20 @@ typedef struct triangleapi_s
 
 } triangleapi_t;
 
+union steamid_t
+{
+    uint64_t value;
+    struct
+    {
+        unsigned int y                  : 1;
+        unsigned int account_number     : 31;
+        unsigned int account_instance   : 20;
+        unsigned int account_type       : 4;
+        unsigned int account_universe   : 8;
+    };
+};
+
+
 typedef struct hud_player_info_s
 {
 	char *name;
@@ -113,6 +127,8 @@ typedef struct hud_player_info_s
 	char *model;
 	short topcolor;
 	short bottomcolor;
+
+    steamid_t steamid;
 
 } hud_player_info_t;
 

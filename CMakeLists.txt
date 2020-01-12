@@ -7,6 +7,7 @@ add_library(CSHook SHARED ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
 # Unicode for Windows (wchar_t)
 ADD_DEFINITIONS(-DUNICODE)
 ADD_DEFINITIONS(-D_UNICODE)
+
 # Dont do me like this windows
 ADD_DEFINITIONS(-DNOMINMAX)
 
@@ -29,8 +30,11 @@ add_compile_options(-Wall -Wextra -Wpedantic)
 target_compile_features(CSHook PUBLIC cxx_std_17)
 
 #Libraries
-find_library(DWMAPI_LIBRARIES dwmapi libdwmapi)                 # Windows DWMAPI for DwmExtendFrameIntoClientArea
-find_library(PSAPI_LIBRARIES psapi libpsapi)                    # Windows PSAPI for GetModuleInformation
+#find_library(DWMAPI_LIBRARIES dwmapi libdwmapi)                 # Windows DWMAPI for DwmExtendFrameIntoClientArea
+#find_library(PSAPI_LIBRARIES psapi libpsapi)                    # Windows PSAPI for GetModuleInformation
+set(DWMAPI_LIBRARIES dwmapi)
+set(PSAPI_LIBRARIES psapi)
+
 find_package(OpenGL)                                            # OpenGL
 
 set(

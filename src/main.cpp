@@ -72,8 +72,6 @@ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved)
 
 
         CreateThread(NULL, NULL, reinterpret_cast<LPTHREAD_START_ROUTINE>(&thread_main), nullptr, NULL, NULL);
-
-        return true;
     }
     
     return true;

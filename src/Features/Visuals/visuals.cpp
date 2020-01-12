@@ -21,7 +21,7 @@ namespace features
             ((g.player_data[entity->index].team != g.local_player_data.team) || this->chams_team)   &&
             (entity->index != local->index) && (entity != local)                                    &&                    
             features::miscelaneous::instance().can_show())
-        {
+        {     
             // If we should render the chams through the walls, use only the top portion of the depth buffer
             if (this->chams_through_walls)
             {

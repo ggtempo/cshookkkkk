@@ -3,6 +3,7 @@
 #include "../../Utils/globals.hpp"
 #include <unordered_map>
 #include <vector>
+#include <iterator>
 
 namespace features
 {

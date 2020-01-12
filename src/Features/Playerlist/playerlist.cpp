@@ -34,6 +34,8 @@ namespace features
                 auto& player = g.player_data[selected];                
                 auto entity = g.engine_funcs->GetEntityByIndex(selected);
                 auto local = g.engine_funcs->GetLocalPlayer();
+                hud_player_info_s info = {};
+                g.engine_funcs->pfnGetPlayerInfo(entity->index, &info);
 
                 if (entity && local)
                 {
@@ -51,6 +53,8 @@ namespace features
                     ImGui::Text("Valid messagenum: %s (%i < %i)", entity->curstate.messagenum >= local->curstate.messagenum ? "true" : "false", entity->curstate.messagenum, local->curstate.messagenum);
                     ImGui::Text("Solid: %s", entity->curstate.solid == 3 ? "true" : "false");
                     ImGui::Text("User test valid: %s", (!(local->curstate.iuser1 == 4 && local->curstate.iuser2 == entity->index)) ? "true" : "false");
+
+                    ImGui::Text("SteamID: STEAM_%i:%i:%i", info.steamid.account_universe, info.steamid.y, info.steamid.account_number);
                 }
             }
         }

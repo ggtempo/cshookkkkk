@@ -203,6 +203,9 @@ namespace hooks
         // Then modify host realtime
         g.engine_time_backup = *g.engine_time;
 
+        //*g.engine_time = (round(*g.engine_time) - 1) + 0.1337;
+        //*g.engine_time = 0;
+        //g.host_realtime -= 10;
         /*
         *g.engine_time = 0;
         *g.host_realtime = 0;
@@ -236,6 +239,8 @@ namespace hooks
         auto cl_write_packet_loc = memory::find_location("hw.dll", {0x53, 0x55, 0x56, 0x57, 0x33, 0xff, 0x3b, 0xc7, 0x0f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x83, 0xf8, 0x01}, -11);
         auto cl_compute_packet_loss_loc = memory::find_location("hw.dll", {0x55, 0x8b, 0xec, 0x83, 0xe4, 0xf8, 0x83, 0xec, 0x0c, 0xdd, 0x05, 0x00, 0x00, 0x00, 0x00, 0xdc, 0x1d, 0x00, 0x00, 0x00, 0x00});
         
+        g.engine_funcs->Con_Printf("CL_WritePacket at: 0x%X\n", cl_write_packet_loc);
+
         // Host realtime
         g.host_realtime = *(double**)(reinterpret_cast<uintptr_t>(cl_compute_packet_loss_loc) + 0xB);
 
